@@ -9,10 +9,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
 import { db } from '@/lib/mock-data';
 import { getLoanSummary, formatNaira, processLoanPayment } from '@/lib/loan-utils';
 import { Member } from '@/types';
+import { ArrowRight, TrendingUp, TrendingDown, PiggyBank, Landmark, CreditCard, BadgeDollarSign } from 'lucide-react';
 
 export default function FinancialUpdatesPage() {
   const [members, setMembers] = useState<Member[]>([]);
@@ -22,110 +22,110 @@ export default function FinancialUpdatesPage() {
   const [success, setSuccess] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [updateForm, setUpdateForm] = useState({
-    sharesBalance: '',
-    savingsBalance: '',
-    loanBalance: '',
-    interestBalance: '',
+  // Delta form — user enters the AMOUNT to add or deduct, not the new total
+  const [deltaForm, setDeltaForm] = useState({
+    sharesAdd: '',      // amount to ADD to shares
+    savingsAdd: '',     // amount to ADD to savings
+    loanDeduct: '',     // amount to DEDUCT from loan (payment)
+    interestDeduct: '', // amount to DEDUCT from interest (payment)
     updateReason: '',
   });
 
+  // Formatted display strings (with commas)
+  const [displayForm, setDisplayForm] = useState({
+    sharesAdd: '',
+    savingsAdd: '',
+    loanDeduct: '',
+    interestDeduct: '',
+  });
+
   const [pendingUpdate, setPendingUpdate] = useState<{
-    shares: { old: number; new: number; change: number };
-    savings: { old: number; new: number; change: number };
-    loan: { old: number; new: number; change: number };
-    interest: { old: number; new: number; change: number };
+    shares: { old: number; delta: number; new: number };
+    savings: { old: number; delta: number; new: number };
+    loan: { old: number; delta: number; new: number };
+    interest: { old: number; delta: number; new: number };
   } | null>(null);
 
-  useEffect(() => {
-    loadMembers();
-  }, []);
+  useEffect(() => { loadMembers(); }, []);
 
   const loadMembers = async () => {
     const allMembers = await db.getMembers();
     setMembers(allMembers);
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-NG', {
-      style: 'currency',
-      currency: 'NGN',
-    }).format(amount);
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(amount);
+
+  const formatDisplayNumber = (val: string) => {
+    const raw = val.replace(/,/g, '').replace(/[^0-9.]/g, '');
+    if (!raw) return '';
+    const parts = raw.split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return parts.length > 1 ? `${parts[0]}.${parts[1]}` : parts[0];
   };
 
   const handleMemberSelect = (memberId: string) => {
     const member = members.find(m => m.id === memberId);
     if (member) {
       setSelectedMember(member);
-      setUpdateForm({
-        sharesBalance: member.sharesBalance.toString(),
-        savingsBalance: member.savingsBalance.toString(),
-        loanBalance: member.loanBalance.toString(),
-        interestBalance: member.interestBalance.toString(),
-        updateReason: '',
-      });
+      setDeltaForm({ sharesAdd: '', savingsAdd: '', loanDeduct: '', interestDeduct: '', updateReason: '' });
+      setDisplayForm({ sharesAdd: '', savingsAdd: '', loanDeduct: '', interestDeduct: '' });
       setError('');
       setSuccess('');
     }
   };
 
-  const handleInputChange = (field: string, value: string) => {
-    setUpdateForm(prev => ({
-      ...prev,
-      [field]: value
-    }));
+  const handleDeltaChange = (field: keyof typeof displayForm, raw: string) => {
+    const numeric = raw.replace(/,/g, '').replace(/[^0-9.]/g, '');
+    setDeltaForm(prev => ({ ...prev, [field]: numeric }));
+    setDisplayForm(prev => ({ ...prev, [field]: formatDisplayNumber(raw) }));
   };
+
+  const parseField = (key: keyof typeof deltaForm) =>
+    parseFloat((deltaForm[key] as string).replace(/,/g, '')) || 0;
 
   const calculateChanges = () => {
     if (!selectedMember) return null;
-
-    const newShares = parseFloat(updateForm.sharesBalance) || 0;
-    const newSavings = parseFloat(updateForm.savingsBalance) || 0;
-    const newLoan = parseFloat(updateForm.loanBalance) || 0;
-    const newInterest = parseFloat(updateForm.interestBalance) || 0;
+    const sharesAdd = parseFloat(deltaForm.sharesAdd) || 0;
+    const savingsAdd = parseFloat(deltaForm.savingsAdd) || 0;
+    const loanDeduct = parseFloat(deltaForm.loanDeduct) || 0;
+    const interestDeduct = parseFloat(deltaForm.interestDeduct) || 0;
 
     return {
-      shares: {
-        old: selectedMember.sharesBalance,
-        new: newShares,
-        change: newShares - selectedMember.sharesBalance
-      },
-      savings: {
-        old: selectedMember.savingsBalance,
-        new: newSavings,
-        change: newSavings - selectedMember.savingsBalance
-      },
-      loan: {
-        old: selectedMember.loanBalance,
-        new: newLoan,
-        change: newLoan - selectedMember.loanBalance
-      },
-      interest: {
-        old: selectedMember.interestBalance,
-        new: newInterest,
-        change: newInterest - selectedMember.interestBalance
-      }
+      shares: { old: selectedMember.sharesBalance, delta: sharesAdd, new: selectedMember.sharesBalance + sharesAdd },
+      savings: { old: selectedMember.savingsBalance, delta: savingsAdd, new: selectedMember.savingsBalance + savingsAdd },
+      loan: { old: selectedMember.loanBalance, delta: -loanDeduct, new: Math.max(0, selectedMember.loanBalance - loanDeduct) },
+      interest: { old: selectedMember.interestBalance, delta: -interestDeduct, new: Math.max(0, selectedMember.interestBalance - interestDeduct) },
     };
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedMember) return;
-
     setError('');
 
-    // Validation
-    const newShares = parseFloat(updateForm.sharesBalance) || 0;
-    const newSavings = parseFloat(updateForm.savingsBalance) || 0;
-    const newLoan = parseFloat(updateForm.loanBalance) || 0;
-    const newInterest = parseFloat(updateForm.interestBalance) || 0;
+    const sharesAdd = parseFloat(deltaForm.sharesAdd) || 0;
+    const savingsAdd = parseFloat(deltaForm.savingsAdd) || 0;
+    const loanDeduct = parseFloat(deltaForm.loanDeduct) || 0;
+    const interestDeduct = parseFloat(deltaForm.interestDeduct) || 0;
 
-    if (newShares < 0 || newSavings < 0 || newLoan < 0 || newInterest < 0) {
-      setError('Balances cannot be negative');
+    if (sharesAdd < 0 || savingsAdd < 0 || loanDeduct < 0 || interestDeduct < 0) {
+      setError('Amounts cannot be negative');
       return;
     }
-
-    if (!updateForm.updateReason.trim()) {
+    if (sharesAdd === 0 && savingsAdd === 0 && loanDeduct === 0 && interestDeduct === 0) {
+      setError('Please enter at least one amount to update');
+      return;
+    }
+    if (loanDeduct > selectedMember.loanBalance) {
+      setError(`Loan deduction (${formatCurrency(loanDeduct)}) exceeds current loan balance (${formatCurrency(selectedMember.loanBalance)})`);
+      return;
+    }
+    if (interestDeduct > selectedMember.interestBalance) {
+      setError(`Interest deduction (${formatCurrency(interestDeduct)}) exceeds current interest balance (${formatCurrency(selectedMember.interestBalance)})`);
+      return;
+    }
+    if (!deltaForm.updateReason.trim()) {
       setError('Please provide a reason for this update');
       return;
     }
@@ -137,164 +137,110 @@ export default function FinancialUpdatesPage() {
 
   const confirmUpdate = async () => {
     if (!selectedMember || !pendingUpdate) return;
-
     setIsSubmitting(true);
     try {
-      const newShares = parseFloat(updateForm.sharesBalance);
-      const newSavings = parseFloat(updateForm.savingsBalance);
-      const newLoan = parseFloat(updateForm.loanBalance);
-      const newInterest = parseFloat(updateForm.interestBalance);
+      const newShares = pendingUpdate.shares.new;
+      const newSavings = pendingUpdate.savings.new;
+      const newLoan = pendingUpdate.loan.new;
+      const newInterest = pendingUpdate.interest.new;
 
-      // Update member balances and recalculate monthly payment if needed
       let monthlyLoanPayment: number | undefined;
+      if (newLoan === 0) monthlyLoanPayment = 0;
 
-      // If loan balance is changing and we have a loan, recalculate monthly payment
-      if (pendingUpdate.loan.change !== 0 && newLoan > 0 && selectedMember.loanStartDate) {
-        const updatedMemberForCalc = { ...selectedMember, loanBalance: newLoan };
-//         monthlyLoanPayment = // LoanCalculator.recalculateMonthlyPayment(updatedMemberForCalc);
-      } else if (newLoan === 0) {
-        // If loan is fully paid off, reset monthly payment
-        monthlyLoanPayment = 0;
-      }
-
-      const memberUpdateData: Partial<Member> = {
+      const updatedMember = await db.updateMember(selectedMember.id, {
         sharesBalance: newShares,
         savingsBalance: newSavings,
         loanBalance: newLoan,
         interestBalance: newInterest,
         ...(monthlyLoanPayment !== undefined && { monthlyLoanPayment }),
-      };
-
-      const updatedMember = await db.updateMember(selectedMember.id, memberUpdateData);
+      });
 
       if (updatedMember) {
-        // Create transaction records for each change
-        const referenceNumber = `ADJ${Date.now()}`;
+        const ref = `ADJ${Date.now()}`;
 
-        if (pendingUpdate.shares.change !== 0) {
+        if (pendingUpdate.shares.delta !== 0) {
           await db.createTransaction({
             memberId: selectedMember.id,
-            type: pendingUpdate.shares.change > 0 ? 'shares_deposit' : 'shares_withdrawal',
-            amount: Math.abs(pendingUpdate.shares.change),
-            description: `Admin adjustment: ${updateForm.updateReason}`,
+            type: pendingUpdate.shares.delta > 0 ? 'shares_deposit' : 'shares_withdrawal',
+            amount: Math.abs(pendingUpdate.shares.delta),
+            description: `Admin adjustment: ${deltaForm.updateReason}`,
             date: new Date(),
             balanceAfter: newShares,
-            referenceNumber: `${referenceNumber}-SH`,
+            referenceNumber: `${ref}-SH`,
             processedBy: 'admin',
           });
         }
 
-        if (pendingUpdate.savings.change !== 0) {
+        if (pendingUpdate.savings.delta !== 0) {
           await db.createTransaction({
             memberId: selectedMember.id,
-            type: pendingUpdate.savings.change > 0 ? 'savings_deposit' : 'savings_withdrawal',
-            amount: Math.abs(pendingUpdate.savings.change),
-            description: `Admin adjustment: ${updateForm.updateReason}`,
+            type: pendingUpdate.savings.delta > 0 ? 'savings_deposit' : 'savings_withdrawal',
+            amount: Math.abs(pendingUpdate.savings.delta),
+            description: `Admin adjustment: ${deltaForm.updateReason}`,
             date: new Date(),
             balanceAfter: newSavings,
-            referenceNumber: `${referenceNumber}-SV`,
+            referenceNumber: `${ref}-SV`,
             processedBy: 'admin',
           });
         }
 
-        if (pendingUpdate.loan.change !== 0 || pendingUpdate.interest.change !== 0) {
-          if (pendingUpdate.loan.change < 0 || pendingUpdate.interest.change < 0) {
-            // This is a payment - automatically split between interest and principal
-            const totalPayment = Math.abs(pendingUpdate.loan.change) + Math.abs(pendingUpdate.interest.change);
-            const paymentSplit = processLoanPayment(selectedMember, totalPayment);
-
-            // Create transaction for interest payment if any
-            if (paymentSplit.interestPaid > 0) {
-              await db.createTransaction({
-                memberId: selectedMember.id,
-                type: 'interest_payment',
-                amount: paymentSplit.interestPaid,
-                description: `Payment (auto-split): ${updateForm.updateReason}`,
-                date: new Date(),
-                balanceAfter: paymentSplit.newInterestBalance,
-                referenceNumber: `${referenceNumber}-IP`,
-                processedBy: 'admin',
-              });
-            }
-
-            // Create transaction for loan payment if any
-            if (paymentSplit.principalPaid > 0) {
-              await db.createTransaction({
-                memberId: selectedMember.id,
-                type: 'loan_payment',
-                amount: paymentSplit.principalPaid,
-                description: `Payment (auto-split): ${updateForm.updateReason}`,
-                date: new Date(),
-                balanceAfter: paymentSplit.newLoanBalance,
-                referenceNumber: `${referenceNumber}-LP`,
-                processedBy: 'admin',
-              });
-            }
-          } else if (pendingUpdate.loan.change > 0) {
-            // This is a loan disbursement - create transaction normally
-            await db.createTransaction({
-              memberId: selectedMember.id,
-              type: 'loan_disbursement',
-              amount: Math.abs(pendingUpdate.loan.change),
-              description: `Admin adjustment: ${updateForm.updateReason}`,
-              date: new Date(),
-              balanceAfter: newLoan,
-              referenceNumber: `${referenceNumber}-LN`,
-              processedBy: 'admin',
-            });
-          }
-        }
-
-        // Handle interest charges (not payments, as payments are handled above with loan payments)
-        if (pendingUpdate.interest.change > 0) {
+        // Loan payment
+        if (pendingUpdate.loan.delta < 0) {
           await db.createTransaction({
             memberId: selectedMember.id,
-            type: 'interest_charge',
-            amount: Math.abs(pendingUpdate.interest.change),
-            description: `Admin adjustment: ${updateForm.updateReason}`,
+            type: 'loan_payment',
+            amount: Math.abs(pendingUpdate.loan.delta),
+            description: `Payment: ${deltaForm.updateReason}`,
+            date: new Date(),
+            balanceAfter: newLoan,
+            referenceNumber: `${ref}-LP`,
+            processedBy: 'admin',
+          });
+        }
+
+        // Interest payment
+        if (pendingUpdate.interest.delta < 0) {
+          await db.createTransaction({
+            memberId: selectedMember.id,
+            type: 'interest_payment',
+            amount: Math.abs(pendingUpdate.interest.delta),
+            description: `Payment: ${deltaForm.updateReason}`,
             date: new Date(),
             balanceAfter: newInterest,
-            referenceNumber: `${referenceNumber}-INT`,
+            referenceNumber: `${ref}-IP`,
             processedBy: 'admin',
           });
         }
 
         setSuccess('Financial balances updated successfully');
         setSelectedMember(updatedMember);
-        loadMembers(); // Refresh members list
+        setDeltaForm({ sharesAdd: '', savingsAdd: '', loanDeduct: '', interestDeduct: '', updateReason: '' });
+        setDisplayForm({ sharesAdd: '', savingsAdd: '', loanDeduct: '', interestDeduct: '' });
+        loadMembers();
         setIsConfirmDialogOpen(false);
         setPendingUpdate(null);
       }
-    } catch (err) {
+    } catch {
       setError('Failed to update financial balances');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const getChangeColor = (change: number) => {
-    if (change > 0) return 'text-green-600';
-    if (change < 0) return 'text-red-600';
-    return 'text-gray-600';
-  };
-
-  const getChangeSymbol = (change: number) => {
-    if (change > 0) return '+';
-    if (change < 0) return '';
-    return '';
-  };
+  const changes = selectedMember ? calculateChanges() : null;
+  const hasAnyChange = changes
+    ? changes.shares.delta !== 0 || changes.savings.delta !== 0 || changes.loan.delta !== 0 || changes.interest.delta !== 0
+    : false;
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-3xl font-bold tracking-tight">Financial Updates</h2>
-        <p className="text-muted-foreground">
-          Update member financial balances and record transactions
-        </p>
+        <p className="text-muted-foreground">Enter the amounts to add or deduct — balances are calculated automatically.</p>
       </div>
 
       {(error || success) && (
-        <Alert variant={error ? "destructive" : "default"}>
+        <Alert variant={error ? 'destructive' : 'default'}>
           <AlertDescription>{error || success}</AlertDescription>
         </Alert>
       )}
@@ -303,87 +249,57 @@ export default function FinancialUpdatesPage() {
       <Card>
         <CardHeader>
           <CardTitle>Select Member</CardTitle>
-          <CardDescription>
-            Choose a member to update their financial balances
-          </CardDescription>
+          <CardDescription>Choose a member to update their financial balances</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="member-select">Member</Label>
-              <Select onValueChange={handleMemberSelect}>
-                <SelectTrigger id="member-select">
-                  <SelectValue placeholder="Select a member to update" />
-                </SelectTrigger>
-                <SelectContent>
-                  {members.map((member) => (
-                    <SelectItem key={member.id} value={member.id}>
-                      {member.memberNumber} - {member.firstName} {member.lastName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+          <Select onValueChange={handleMemberSelect}>
+            <SelectTrigger id="member-select">
+              <SelectValue placeholder="Select a member to update" />
+            </SelectTrigger>
+            <SelectContent>
+              {members.map(member => (
+                <SelectItem key={member.id} value={member.id}>
+                  {member.memberNumber} — {member.firstName} {member.lastName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </CardContent>
       </Card>
 
-      {/* Current Balances & Update Form */}
       {selectedMember && (
         <>
-          {/* Current Balances Display */}
+          {/* Current Balances */}
           <Card>
             <CardHeader>
-              <CardTitle>Current Balances - {selectedMember.firstName} {selectedMember.lastName}</CardTitle>
-              <CardDescription>
-                Member Number: {selectedMember.memberNumber}
-              </CardDescription>
+              <CardTitle>Current Balances — {selectedMember.firstName} {selectedMember.lastName}</CardTitle>
+              <CardDescription>Member {selectedMember.memberNumber}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <div className="p-4 border rounded-lg">
-                  <Label className="text-sm font-medium text-gray-600">SHARES BALANCE</Label>
-                  <p className="text-lg font-bold text-blue-600">{formatCurrency(selectedMember.sharesBalance)}</p>
-                </div>
-                <div className="p-4 border rounded-lg">
-                  <Label className="text-sm font-medium text-gray-600">SAVINGS BALANCE</Label>
-                  <p className="text-lg font-bold text-green-600">{formatCurrency(selectedMember.savingsBalance)}</p>
-                </div>
-                <div className="p-4 border rounded-lg">
-                  <Label className="text-sm font-medium text-gray-600">LOAN BALANCE</Label>
-                  <p className="text-lg font-bold text-orange-600">{formatCurrency(selectedMember.loanBalance)}</p>
-                </div>
-                <div className="p-4 border rounded-lg">
-                  <Label className="text-sm font-medium text-gray-600">INTEREST DUE</Label>
-                  <p className="text-lg font-bold text-red-600">{formatCurrency(selectedMember.interestBalance)}</p>
-                </div>
+                {[
+                  { label: 'SHARES', value: selectedMember.sharesBalance, color: 'text-blue-600', icon: <Landmark className="w-4 h-4" /> },
+                  { label: 'SAVINGS', value: selectedMember.savingsBalance, color: 'text-green-600', icon: <PiggyBank className="w-4 h-4" /> },
+                  { label: 'LOAN', value: selectedMember.loanBalance, color: 'text-orange-600', icon: <CreditCard className="w-4 h-4" /> },
+                  { label: 'INTEREST DUE', value: selectedMember.interestBalance, color: 'text-red-600', icon: <BadgeDollarSign className="w-4 h-4" /> },
+                ].map(item => (
+                  <div key={item.label} className="p-4 border rounded-lg space-y-1">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-widest">
+                      {item.icon} {item.label}
+                    </div>
+                    <p className={`text-lg font-bold ${item.color}`}>{formatCurrency(item.value)}</p>
+                  </div>
+                ))}
               </div>
-
-              {/* Loan Information */}
               {(() => {
                 const loanInfo = getLoanSummary(selectedMember);
                 return loanInfo ? (
                   <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <h4 className="font-medium text-blue-800 mb-2">Active Loan Information</h4>
+                    <h4 className="font-medium text-blue-800 mb-2 text-sm">Active Loan Information</h4>
                     <div className="grid gap-2 md:grid-cols-3 text-sm">
-                      <div>
-                        <span className="text-blue-600">Interest Rate:</span>
-                        <span className="ml-2 font-medium text-blue-800">
-                          {loanInfo.currentMonthlyRate}%
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-blue-600">Months Since Disbursement:</span>
-                        <span className="ml-2 font-medium text-blue-800">
-                          {loanInfo.monthsSinceDisbursement}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-blue-600">Total Owed:</span>
-                        <span className="ml-2 font-medium text-blue-800">
-                          {formatCurrency(loanInfo.totalOwed)}
-                        </span>
-                      </div>
+                      <div><span className="text-blue-600">Interest Rate:</span><span className="ml-2 font-medium text-blue-800">{loanInfo.currentMonthlyRate}%/mo</span></div>
+                      <div><span className="text-blue-600">Months Since Disbursement:</span><span className="ml-2 font-medium text-blue-800">{loanInfo.monthsSinceDisbursement}</span></div>
+                      <div><span className="text-blue-600">Total Owed:</span><span className="ml-2 font-medium text-blue-800">{formatCurrency(loanInfo.totalOwed)}</span></div>
                     </div>
                   </div>
                 ) : null;
@@ -391,142 +307,166 @@ export default function FinancialUpdatesPage() {
             </CardContent>
           </Card>
 
-          {/* Update Form */}
+          {/* Delta Update Form */}
           <Card>
             <CardHeader>
-              <CardTitle>Update Financial Balances</CardTitle>
+              <CardTitle>Record Payment / Adjustment</CardTitle>
               <CardDescription>
-                Enter new balance amounts. Changes will be recorded as transactions.
+                Enter the <strong>amount to add</strong> to each positive account, or the <strong>amount paid</strong> off each debt. Leave blank to skip.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-6 md:grid-cols-2">
+                  {/* Shares — ADD */}
                   <div className="space-y-2">
-                    <Label htmlFor="shares">Shares Balance (NGN)</Label>
-                    <Input
-                      id="shares"
-                      type="number"
-                      step="0.01"
-                      value={updateForm.sharesBalance}
-                      onChange={(e) => handleInputChange('sharesBalance', e.target.value)}
-                      placeholder="Enter new shares balance"
-                      required
-                    />
+                    <Label htmlFor="sharesAdd" className="flex items-center gap-2">
+                      <TrendingUp className="w-4 h-4 text-blue-500" />
+                      Add to Shares (NGN)
+                    </Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">+</span>
+                      <Input
+                        id="sharesAdd"
+                        inputMode="numeric"
+                        value={displayForm.sharesAdd}
+                        onChange={e => handleDeltaChange('sharesAdd', e.target.value)}
+                        placeholder="0"
+                        className="pl-7"
+                      />
+                    </div>
+                    {changes && changes.shares.delta > 0 && (
+                      <p className="text-xs text-blue-600 font-medium">
+                        {formatCurrency(changes.shares.old)} <ArrowRight className="inline w-3 h-3" /> {formatCurrency(changes.shares.new)}
+                      </p>
+                    )}
                   </div>
+
+                  {/* Savings — ADD */}
                   <div className="space-y-2">
-                    <Label htmlFor="savings">Savings Balance (NGN)</Label>
-                    <Input
-                      id="savings"
-                      type="number"
-                      step="0.01"
-                      value={updateForm.savingsBalance}
-                      onChange={(e) => handleInputChange('savingsBalance', e.target.value)}
-                      placeholder="Enter new savings balance"
-                      required
-                    />
+                    <Label htmlFor="savingsAdd" className="flex items-center gap-2">
+                      <TrendingUp className="w-4 h-4 text-green-500" />
+                      Add to Savings (NGN)
+                    </Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">+</span>
+                      <Input
+                        id="savingsAdd"
+                        inputMode="numeric"
+                        value={displayForm.savingsAdd}
+                        onChange={e => handleDeltaChange('savingsAdd', e.target.value)}
+                        placeholder="0"
+                        className="pl-7"
+                      />
+                    </div>
+                    {changes && changes.savings.delta > 0 && (
+                      <p className="text-xs text-green-600 font-medium">
+                        {formatCurrency(changes.savings.old)} <ArrowRight className="inline w-3 h-3" /> {formatCurrency(changes.savings.new)}
+                      </p>
+                    )}
                   </div>
+
+                  {/* Loan — DEDUCT */}
                   <div className="space-y-2">
-                    <Label htmlFor="loan">Loan Balance (NGN)</Label>
-                    <Input
-                      id="loan"
-                      type="number"
-                      step="0.01"
-                      value={updateForm.loanBalance}
-                      onChange={(e) => handleInputChange('loanBalance', e.target.value)}
-                      placeholder="Enter new loan balance"
-                      required
-                    />
+                    <Label htmlFor="loanDeduct" className="flex items-center gap-2">
+                      <TrendingDown className="w-4 h-4 text-orange-500" />
+                      Loan Payment / Deduction (NGN)
+                    </Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">−</span>
+                      <Input
+                        id="loanDeduct"
+                        inputMode="numeric"
+                        value={displayForm.loanDeduct}
+                        onChange={e => handleDeltaChange('loanDeduct', e.target.value)}
+                        placeholder="0"
+                        className="pl-7"
+                      />
+                    </div>
+                    {changes && changes.loan.delta < 0 && (
+                      <p className="text-xs text-orange-600 font-medium">
+                        {formatCurrency(changes.loan.old)} <ArrowRight className="inline w-3 h-3" /> {formatCurrency(changes.loan.new)}
+                      </p>
+                    )}
                   </div>
+
+                  {/* Interest — DEDUCT */}
                   <div className="space-y-2">
-                    <Label htmlFor="interest">Interest Balance (NGN)</Label>
-                    <Input
-                      id="interest"
-                      type="number"
-                      step="0.01"
-                      value={updateForm.interestBalance}
-                      onChange={(e) => handleInputChange('interestBalance', e.target.value)}
-                      placeholder="Enter new interest balance"
-                      required
-                    />
+                    <Label htmlFor="interestDeduct" className="flex items-center gap-2">
+                      <TrendingDown className="w-4 h-4 text-red-500" />
+                      Interest Payment / Deduction (NGN)
+                    </Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">−</span>
+                      <Input
+                        id="interestDeduct"
+                        inputMode="numeric"
+                        value={displayForm.interestDeduct}
+                        onChange={e => handleDeltaChange('interestDeduct', e.target.value)}
+                        placeholder="0"
+                        className="pl-7"
+                      />
+                    </div>
+                    {changes && changes.interest.delta < 0 && (
+                      <p className="text-xs text-red-600 font-medium">
+                        {formatCurrency(changes.interest.old)} <ArrowRight className="inline w-3 h-3" /> {formatCurrency(changes.interest.new)}
+                      </p>
+                    )}
                   </div>
                 </div>
 
+                {/* Live summary */}
+                {hasAnyChange && (
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2">
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Summary of Changes</p>
+                    {changes && changes.shares.delta !== 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-600">Shares</span>
+                        <span className="font-bold text-blue-600">+{formatCurrency(changes.shares.delta)} → {formatCurrency(changes.shares.new)}</span>
+                      </div>
+                    )}
+                    {changes && changes.savings.delta !== 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-600">Savings</span>
+                        <span className="font-bold text-green-600">+{formatCurrency(changes.savings.delta)} → {formatCurrency(changes.savings.new)}</span>
+                      </div>
+                    )}
+                    {changes && changes.loan.delta !== 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-600">Loan</span>
+                        <span className="font-bold text-orange-600">{formatCurrency(changes.loan.delta)} → {formatCurrency(changes.loan.new)}</span>
+                      </div>
+                    )}
+                    {changes && changes.interest.delta !== 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-600">Interest</span>
+                        <span className="font-bold text-red-600">{formatCurrency(changes.interest.delta)} → {formatCurrency(changes.interest.new)}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Reason */}
                 <div className="space-y-2">
                   <Label htmlFor="reason">Reason for Update *</Label>
                   <Textarea
                     id="reason"
-                    value={updateForm.updateReason}
-                    onChange={(e) => handleInputChange('updateReason', e.target.value)}
-                    placeholder="Describe the reason for this financial update (e.g., 'Payment received', 'Interest adjustment', 'Correction')"
+                    value={deltaForm.updateReason}
+                    onChange={e => setDeltaForm(prev => ({ ...prev, updateReason: e.target.value }))}
+                    placeholder="e.g. 'Monthly payment received', 'Correction', 'Late fee'"
                     rows={3}
                     required
                   />
                 </div>
 
-                {/* Change Preview */}
-                {(() => {
-                  const changes = calculateChanges();
-                  return changes ? (
-                    <div className="border rounded-lg p-4 bg-gray-50">
-                      <h4 className="font-medium mb-3">Preview Changes</h4>
-                      <div className="grid gap-2 md:grid-cols-2">
-                        {changes.shares.change !== 0 && (
-                          <div className="flex justify-between">
-                            <span>Shares:</span>
-                            <span className={getChangeColor(changes.shares.change)}>
-                              {getChangeSymbol(changes.shares.change)}{formatCurrency(Math.abs(changes.shares.change))}
-                            </span>
-                          </div>
-                        )}
-                        {changes.savings.change !== 0 && (
-                          <div className="flex justify-between">
-                            <span>Savings:</span>
-                            <span className={getChangeColor(changes.savings.change)}>
-                              {getChangeSymbol(changes.savings.change)}{formatCurrency(Math.abs(changes.savings.change))}
-                            </span>
-                          </div>
-                        )}
-                        {changes.loan.change !== 0 && (
-                          <div className="flex justify-between">
-                            <span>Loan:</span>
-                            <span className={getChangeColor(changes.loan.change)}>
-                              {getChangeSymbol(changes.loan.change)}{formatCurrency(Math.abs(changes.loan.change))}
-                            </span>
-                          </div>
-                        )}
-                        {changes.interest.change !== 0 && (
-                          <div className="flex justify-between">
-                            <span>Interest:</span>
-                            <span className={getChangeColor(changes.interest.change)}>
-                              {getChangeSymbol(changes.interest.change)}{formatCurrency(Math.abs(changes.interest.change))}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ) : null;
-                })()}
-
-                <div className="flex justify-end space-x-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setSelectedMember(null);
-                      setUpdateForm({
-                        sharesBalance: '',
-                        savingsBalance: '',
-                        loanBalance: '',
-                        interestBalance: '',
-                        updateReason: '',
-                      });
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={isSubmitting}>
-                    Update Balances
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={() => {
+                    setSelectedMember(null);
+                    setDeltaForm({ sharesAdd: '', savingsAdd: '', loanDeduct: '', interestDeduct: '', updateReason: '' });
+                    setDisplayForm({ sharesAdd: '', savingsAdd: '', loanDeduct: '', interestDeduct: '' });
+                  }}>Cancel</Button>
+                  <Button type="submit" disabled={isSubmitting || !hasAnyChange}>
+                    Review & Confirm
                   </Button>
                 </div>
               </form>
@@ -537,75 +477,68 @@ export default function FinancialUpdatesPage() {
 
       {/* Confirmation Dialog */}
       <Dialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
-        <DialogContent className="w-[95vw] sm:w-full max-w-2xl">
+        <DialogContent className="w-[95vw] sm:w-full max-w-lg">
           <DialogHeader>
             <DialogTitle>Confirm Financial Update</DialogTitle>
             <DialogDescription>
-              Please review the changes before confirming. These changes will be recorded as transactions.
+              Review the changes below. These will be recorded as transactions and cannot be easily undone.
             </DialogDescription>
           </DialogHeader>
           {selectedMember && pendingUpdate && (
             <div className="space-y-4">
-              <div className="p-4 border rounded-lg">
-                <h4 className="font-medium mb-2">
-                  Member: {selectedMember.firstName} {selectedMember.lastName} ({selectedMember.memberNumber})
-                </h4>
-                <div className="space-y-2 text-sm">
-                  {pendingUpdate.shares.change !== 0 && (
-                    <div className="flex justify-between">
-                      <span>Shares:</span>
-                      <span>
-                        {formatCurrency(pendingUpdate.shares.old)} → {formatCurrency(pendingUpdate.shares.new)}
-                        <span className={`ml-2 font-medium ${getChangeColor(pendingUpdate.shares.change)}`}>
-                          ({getChangeSymbol(pendingUpdate.shares.change)}{formatCurrency(Math.abs(pendingUpdate.shares.change))})
-                        </span>
-                      </span>
-                    </div>
-                  )}
-                  {pendingUpdate.savings.change !== 0 && (
-                    <div className="flex justify-between">
-                      <span>Savings:</span>
-                      <span>
-                        {formatCurrency(pendingUpdate.savings.old)} → {formatCurrency(pendingUpdate.savings.new)}
-                        <span className={`ml-2 font-medium ${getChangeColor(pendingUpdate.savings.change)}`}>
-                          ({getChangeSymbol(pendingUpdate.savings.change)}{formatCurrency(Math.abs(pendingUpdate.savings.change))})
-                        </span>
-                      </span>
-                    </div>
-                  )}
-                  {pendingUpdate.loan.change !== 0 && (
-                    <div className="flex justify-between">
-                      <span>Loan:</span>
-                      <span>
-                        {formatCurrency(pendingUpdate.loan.old)} → {formatCurrency(pendingUpdate.loan.new)}
-                        <span className={`ml-2 font-medium ${getChangeColor(pendingUpdate.loan.change)}`}>
-                          ({getChangeSymbol(pendingUpdate.loan.change)}{formatCurrency(Math.abs(pendingUpdate.loan.change))})
-                        </span>
-                      </span>
-                    </div>
-                  )}
-                  {pendingUpdate.interest.change !== 0 && (
-                    <div className="flex justify-between">
-                      <span>Interest:</span>
-                      <span>
-                        {formatCurrency(pendingUpdate.interest.old)} → {formatCurrency(pendingUpdate.interest.new)}
-                        <span className={`ml-2 font-medium ${getChangeColor(pendingUpdate.interest.change)}`}>
-                          ({getChangeSymbol(pendingUpdate.interest.change)}{formatCurrency(Math.abs(pendingUpdate.interest.change))})
-                        </span>
-                      </span>
-                    </div>
-                  )}
-                </div>
+              <p className="text-sm font-semibold text-slate-700">
+                Member: {selectedMember.firstName} {selectedMember.lastName} ({selectedMember.memberNumber})
+              </p>
+
+              <div className="rounded-xl border divide-y text-sm">
+                {pendingUpdate.shares.delta !== 0 && (
+                  <div className="flex justify-between items-center px-4 py-3">
+                    <span className="text-slate-500">Shares</span>
+                    <span className="font-mono">
+                      {formatCurrency(pendingUpdate.shares.old)} → <span className="font-bold text-blue-600">{formatCurrency(pendingUpdate.shares.new)}</span>
+                      <span className="ml-2 text-blue-500">(+{formatCurrency(Math.abs(pendingUpdate.shares.delta))})</span>
+                    </span>
+                  </div>
+                )}
+                {pendingUpdate.savings.delta !== 0 && (
+                  <div className="flex justify-between items-center px-4 py-3">
+                    <span className="text-slate-500">Savings</span>
+                    <span className="font-mono">
+                      {formatCurrency(pendingUpdate.savings.old)} → <span className="font-bold text-green-600">{formatCurrency(pendingUpdate.savings.new)}</span>
+                      <span className="ml-2 text-green-500">(+{formatCurrency(Math.abs(pendingUpdate.savings.delta))})</span>
+                    </span>
+                  </div>
+                )}
+                {pendingUpdate.loan.delta !== 0 && (
+                  <div className="flex justify-between items-center px-4 py-3">
+                    <span className="text-slate-500">Loan</span>
+                    <span className="font-mono">
+                      {formatCurrency(pendingUpdate.loan.old)} → <span className="font-bold text-orange-600">{formatCurrency(pendingUpdate.loan.new)}</span>
+                      <span className="ml-2 text-orange-500">({formatCurrency(pendingUpdate.loan.delta)})</span>
+                    </span>
+                  </div>
+                )}
+                {pendingUpdate.interest.delta !== 0 && (
+                  <div className="flex justify-between items-center px-4 py-3">
+                    <span className="text-slate-500">Interest</span>
+                    <span className="font-mono">
+                      {formatCurrency(pendingUpdate.interest.old)} → <span className="font-bold text-red-600">{formatCurrency(pendingUpdate.interest.new)}</span>
+                      <span className="ml-2 text-red-500">({formatCurrency(pendingUpdate.interest.delta)})</span>
+                    </span>
+                  </div>
+                )}
               </div>
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm"><strong>Reason:</strong> {updateForm.updateReason}</p>
+
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm"><strong>Reason:</strong> {deltaForm.updateReason}</p>
               </div>
-              <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => setIsConfirmDialogOpen(false)}>
-                  Cancel
+
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setIsConfirmDialogOpen(false)} disabled={isSubmitting}>
+                  Go Back
                 </Button>
                 <Button onClick={confirmUpdate} disabled={isSubmitting}>
-                  {isSubmitting ? 'Updating...' : 'Confirm Update'}
+                  {isSubmitting ? 'Saving...' : 'Confirm & Save'}
                 </Button>
               </div>
             </div>
