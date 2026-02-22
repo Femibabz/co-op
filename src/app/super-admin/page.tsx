@@ -1,11 +1,25 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { db } from '@/lib/mock-data';
 import { Transaction, LoginSession, Member, User } from '@/types';
+import {
+  Users,
+  Building2,
+  TrendingUp,
+  Coins,
+  ShieldCheck,
+  History,
+  ArrowRight,
+  PieChart,
+  Wallet,
+  Activity,
+  FileClock
+} from 'lucide-react';
 
 export default function SuperAdminDashboard() {
   const [stats, setStats] = useState({
@@ -81,318 +95,250 @@ export default function SuperAdminDashboard() {
   const interestEarned = members.reduce((sum, m) => sum + (m.interestBalance || 0), 0);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight">OsuOlale Society Dashboard</h2>
-        <p className="text-muted-foreground">
-          Comprehensive monitoring and analytics for the society
-        </p>
-      </div>
-
-      {/* Financial Overview */}
-      <div>
-        <h3 className="text-lg font-semibold mb-4">Financial Overview</h3>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-green-900">Total Savings</CardTitle>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" className="h-4 w-4 text-green-600">
-                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-              </svg>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-900">{formatCurrency(stats.totalSavings)}</div>
-              <p className="text-xs text-green-700 mt-1">
-                Member deposits
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-blue-900">Total Shares</CardTitle>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" className="h-4 w-4 text-blue-600">
-                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
-              </svg>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-blue-900">{formatCurrency(stats.totalShares)}</div>
-              <p className="text-xs text-blue-700 mt-1">
-                Share capital
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-orange-900">Outstanding Loans</CardTitle>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" className="h-4 w-4 text-orange-600">
-                <rect width="20" height="14" x="2" y="5" rx="2" />
-                <path d="M2 10h20" />
-              </svg>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-orange-900">{formatCurrency(outstandingLoans)}</div>
-              <p className="text-xs text-orange-700 mt-1">
-                Active loans
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-purple-900">Interest Earned</CardTitle>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" className="h-4 w-4 text-purple-600">
-                <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-              </svg>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-purple-900">{formatCurrency(interestEarned)}</div>
-              <p className="text-xs text-purple-700 mt-1">
-                From loans
-              </p>
-            </CardContent>
-          </Card>
+    <div className="space-y-10">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div className="space-y-1">
+          <p className="text-sm font-bold text-indigo-600 uppercase tracking-widest">Platform Intelligence</p>
+          <h2 className="text-4xl font-extrabold text-slate-900 tracking-tight">Executive Dashboard</h2>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button className="btn-premium bg-indigo-600 hover:bg-indigo-700" asChild>
+            <Link href="/super-admin/database-setup">
+              <ShieldCheck className="w-4 h-4 mr-2" />
+              System Audit
+            </Link>
+          </Button>
         </div>
       </div>
 
-      {/* Society Metrics */}
-      <div>
-        <h3 className="text-lg font-semibold mb-4">Society Metrics</h3>
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Members</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalMembers}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                <span className="text-green-600 font-medium">{stats.activeMembers} active</span>
-              </p>
-            </CardContent>
-          </Card>
+      {/* Financial Hub */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <div className="premium-card p-8 bg-emerald-600 text-white border-transparent shadow-xl shadow-emerald-200/50 group">
+          <div className="flex justify-between items-start mb-6">
+            <div className="p-3 bg-white/20 rounded-2xl">
+              <Wallet className="w-6 h-6 text-white" />
+            </div>
+            <p className="text-emerald-100 font-bold text-[10px] uppercase tracking-widest">Total Savings</p>
+          </div>
+          <p className="text-3xl font-extrabold tracking-tight group-hover:scale-105 transition-transform duration-300">
+            {formatCurrency(stats.totalSavings)}
+          </p>
+          <div className="mt-4 pt-4 border-t border-white/10 flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-emerald-300 animate-pulse"></div>
+            <span className="text-[10px] text-emerald-100 font-bold uppercase tracking-wider tabular-nums">Liquidity: Stable</span>
+          </div>
+        </div>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalUsers}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                <span className="text-green-600 font-medium">{stats.activeUsers} active</span>
-              </p>
-            </CardContent>
-          </Card>
+        <div className="premium-card p-8 bg-blue-600 text-white border-transparent shadow-xl shadow-blue-200/50 group">
+          <div className="flex justify-between items-start mb-6">
+            <div className="p-3 bg-white/20 rounded-2xl">
+              <PieChart className="w-6 h-6 text-white" />
+            </div>
+            <p className="text-blue-100 font-bold text-[10px] uppercase tracking-widest">Share Capital</p>
+          </div>
+          <p className="text-3xl font-extrabold tracking-tight group-hover:scale-105 transition-transform duration-300">
+            {formatCurrency(stats.totalShares)}
+          </p>
+          <div className="mt-4 pt-4 border-t border-white/10 flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-blue-300"></div>
+            <span className="text-[10px] text-blue-100 font-bold uppercase tracking-wider">Equity Allocation</span>
+          </div>
+        </div>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending Applications</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-orange-600">{stats.pendingApplications}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Awaiting review
-              </p>
-            </CardContent>
-          </Card>
+        <div className="premium-card p-8 bg-rose-600 text-white border-transparent shadow-xl shadow-rose-200/50 group">
+          <div className="flex justify-between items-start mb-6">
+            <div className="p-3 bg-white/20 rounded-2xl">
+              <Coins className="w-6 h-6 text-white" />
+            </div>
+            <p className="text-rose-100 font-bold text-[10px] uppercase tracking-widest">Active Credit</p>
+          </div>
+          <p className="text-3xl font-extrabold tracking-tight group-hover:scale-105 transition-transform duration-300">
+            {formatCurrency(outstandingLoans)}
+          </p>
+          <div className="mt-4 pt-4 border-t border-white/10 flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-rose-300"></div>
+            <span className="text-[10px] text-rose-100 font-bold uppercase tracking-wider">Lending Exposure</span>
+          </div>
+        </div>
 
-          <Card className="bg-gradient-to-br from-indigo-50 to-indigo-100 border-indigo-200">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-indigo-900">Database Tools</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <a
-                href="/seed-bylaws"
-                className="inline-flex items-center justify-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-sm font-medium transition-colors w-full"
-              >
-                🔧 Seed By-Laws
-              </a>
-              <p className="text-xs text-indigo-700 mt-2">
-                Initialize database with society by-laws
-              </p>
-            </CardContent>
-          </Card>
+        <div className="premium-card p-8 bg-indigo-600 text-white border-transparent shadow-xl shadow-indigo-200/50 group">
+          <div className="flex justify-between items-start mb-6">
+            <div className="p-3 bg-white/20 rounded-2xl">
+              <TrendingUp className="w-6 h-6 text-white" />
+            </div>
+            <p className="text-indigo-100 font-bold text-[10px] uppercase tracking-widest">Growth Index</p>
+          </div>
+          <p className="text-3xl font-extrabold tracking-tight group-hover:scale-105 transition-transform duration-300">
+            {formatCurrency(interestEarned)}
+          </p>
+          <div className="mt-4 pt-4 border-t border-white/10 flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-indigo-300"></div>
+            <span className="text-[10px] text-indigo-100 font-bold uppercase tracking-wider">Interest Earnings</span>
+          </div>
         </div>
       </div>
 
-      {/* Recent Transactions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Transactions</CardTitle>
-          <CardDescription>Latest financial activities in the society</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Member</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {recentTransactions.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground">
-                    No transactions found
-                  </TableCell>
-                </TableRow>
-              ) : (
-                recentTransactions.map((transaction) => {
-                  const member = members.find(m => m.id === transaction.memberId);
-                  return (
-                    <TableRow key={transaction.id}>
-                      <TableCell className="text-sm">{formatDateShort(transaction.date)}</TableCell>
-                      <TableCell className="font-medium">
-                        {member ? `${member.firstName} ${member.lastName}` : 'Unknown'}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={
-                          transaction.type.includes('deposit') || transaction.type.includes('payment') ? 'default' :
-                          transaction.type.includes('withdrawal') || transaction.type.includes('disbursement') ? 'destructive' :
-                          'secondary'
-                        }>
-                          {transaction.type.replace(/_/g, ' ')}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right font-semibold">
-                        {formatCurrency(transaction.amount)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="default">
-                          Completed
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      {/* Society Health Metrics */}
+      <div className="grid gap-6 md:grid-cols-4">
+        <div className="premium-card p-6 flex flex-col justify-between group">
+          <div className="flex items-center justify-between">
+            <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">Total Membership</p>
+            <Users className="w-4 h-4 text-slate-300 group-hover:text-emerald-500 transition-colors" />
+          </div>
+          <div className="mt-4 space-y-1">
+            <p className="text-4xl font-extrabold text-slate-900 tracking-tight">{stats.totalMembers}</p>
+            <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">{stats.activeMembers} ACTIVE USERS</p>
+          </div>
+        </div>
 
-      {/* User Activity Logs */}
-      <Card>
-        <CardHeader>
-          <CardTitle>User Activity Logs</CardTitle>
-          <CardDescription>Recent login sessions and user activities</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>User</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Login Time</TableHead>
-                <TableHead>Device</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {recentSessions.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground">
-                    No login sessions found
-                  </TableCell>
+        <div className="premium-card p-6 flex flex-col justify-between group">
+          <div className="flex items-center justify-between">
+            <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">Platform Access</p>
+            <Activity className="w-4 h-4 text-slate-300 group-hover:text-blue-500 transition-colors" />
+          </div>
+          <div className="mt-4 space-y-1">
+            <p className="text-4xl font-extrabold text-slate-900 tracking-tight">{stats.totalUsers}</p>
+            <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">{stats.activeUsers} SESSIONS</p>
+          </div>
+        </div>
+
+        <div className="premium-card p-6 flex flex-col justify-between group">
+          <div className="flex items-center justify-between">
+            <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">Pending Requests</p>
+            <FileClock className="w-4 h-4 text-slate-300 group-hover:text-amber-500 transition-colors" />
+          </div>
+          <div className="mt-4 space-y-1">
+            <p className="text-4xl font-extrabold text-rose-600 tracking-tight">{stats.pendingApplications}</p>
+            <p className="text-[10px] font-bold text-rose-500 uppercase tracking-widest">AWAITING REVIEW</p>
+          </div>
+        </div>
+
+        <div className="premium-card p-6 bg-slate-50 border-slate-200/60 transition-all hover:bg-slate-100/50 flex flex-col justify-center gap-4">
+          <Button variant="outline" className="rounded-xl font-bold border-2 bg-white h-12 hover:scale-[1.02] transition-transform" asChild>
+            <Link href="/seed-bylaws">
+              <ShieldCheck className="w-4 h-4 mr-2 text-indigo-600" />
+              Configure By-Laws
+            </Link>
+          </Button>
+          <p className="text-[9px] text-center font-bold text-slate-400 uppercase tracking-widest tabular-nums leading-none">Initialization System v1.4.2</p>
+        </div>
+      </div>
+
+      {/* Tables Section */}
+      <div className="grid gap-8">
+        {/* Recent Transactions */}
+        <div className="premium-card p-8">
+          <div className="flex items-center justify-between mb-8">
+            <div className="space-y-1">
+              <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">Financial Transaction Flow</h3>
+              <p className="text-slate-500 font-medium">Monitoring real-time liquidity movements</p>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent border-slate-100">
+                  <TableHead className="font-extrabold uppercase text-[10px] tracking-widest py-4">Timeline</TableHead>
+                  <TableHead className="font-extrabold uppercase text-[10px] tracking-widest py-4">Entity</TableHead>
+                  <TableHead className="font-extrabold uppercase text-[10px] tracking-widest py-4">Classification</TableHead>
+                  <TableHead className="font-extrabold uppercase text-[10px] tracking-widest py-4 text-right">Volume (NGN)</TableHead>
+                  <TableHead className="font-extrabold uppercase text-[10px] tracking-widest py-4">Status</TableHead>
                 </TableRow>
-              ) : (
-                recentSessions.map((session) => (
-                  <TableRow key={session.id}>
-                    <TableCell className="font-medium">{session.userEmail}</TableCell>
-                    <TableCell>
-                      <Badge variant={
-                        session.userRole === 'super_admin' ? 'default' :
-                        session.userRole === 'admin' ? 'secondary' :
-                        'outline'
-                      }>
+              </TableHeader>
+              <TableBody>
+                {recentTransactions.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-20 text-slate-400 font-medium italic">
+                      Zero transaction volume detected
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  recentTransactions.map((transaction) => {
+                    const member = members.find(m => m.id === transaction.memberId);
+                    return (
+                      <TableRow key={transaction.id} className="group border-slate-50 hover:bg-slate-50/50 transition-colors">
+                        <TableCell className="text-xs font-bold text-slate-500 tabular-nums py-5">{formatDateShort(transaction.date)}</TableCell>
+                        <TableCell className="font-extrabold text-slate-900 py-5">
+                          {member ? `${member.firstName} ${member.lastName}` : 'System'}
+                        </TableCell>
+                        <TableCell className="py-5">
+                          <Badge className={`rounded-lg uppercase text-[9px] font-extrabold tracking-widest px-2 py-1 ${transaction.type.includes('deposit') || transaction.type.includes('payment') ? 'bg-emerald-100 text-emerald-700' :
+                            transaction.type.includes('withdrawal') || transaction.type.includes('disbursement') ? 'bg-rose-100 text-rose-700' :
+                              'bg-indigo-100 text-indigo-700'
+                            }`}>
+                            {transaction.type.replace(/_/g, ' ')}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right font-black text-slate-900 tabular-nums py-5">
+                          {formatCurrency(transaction.amount)}
+                        </TableCell>
+                        <TableCell className="py-5">
+                          <div className="flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                            <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Finalized</span>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+
+        {/* User Session Monitoring */}
+        <div className="premium-card p-8">
+          <div className="flex items-center justify-between mb-8">
+            <div className="space-y-1">
+              <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">Access Control & Sessions</h3>
+              <p className="text-slate-500 font-medium">Real-time security auditing and device tracking</p>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent border-slate-100">
+                  <TableHead className="font-extrabold uppercase text-[10px] tracking-widest py-4">Auth Identity</TableHead>
+                  <TableHead className="font-extrabold uppercase text-[10px] tracking-widest py-4">Privilege</TableHead>
+                  <TableHead className="font-extrabold uppercase text-[10px] tracking-widest py-4">Observation Time</TableHead>
+                  <TableHead className="font-extrabold uppercase text-[10px] tracking-widest py-4">Origin Hub</TableHead>
+                  <TableHead className="font-extrabold uppercase text-[10px] tracking-widest py-4">Environment</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {recentSessions.map((session) => (
+                  <TableRow key={session.id} className="group border-slate-50 hover:bg-slate-50/50 transition-colors">
+                    <TableCell className="font-extrabold text-slate-900 py-5">{session.userEmail}</TableCell>
+                    <TableCell className="py-5">
+                      <Badge className={`rounded-lg uppercase text-[9px] font-extrabold tracking-widest px-2 py-1 ${session.userRole === 'super_admin' ? 'bg-indigo-100 text-indigo-700 border border-indigo-200' :
+                        session.userRole === 'admin' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' :
+                          'bg-slate-100 text-slate-700 border border-slate-200'
+                        }`}>
                         {session.userRole}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-sm">{formatDate(session.loginTime)}</TableCell>
-                    <TableCell className="text-sm">
-                      {session.deviceInfo?.deviceType || 'Unknown'} - {session.deviceInfo?.browser || 'N/A'}
+                    <TableCell className="text-xs font-bold text-slate-500 tabular-nums py-5">{formatDate(session.loginTime)}</TableCell>
+                    <TableCell className="text-xs font-bold text-slate-600 py-5">
+                      {session.locationInfo?.city || 'HQ'}, {session.locationInfo?.country || 'INTERNAL'}
                     </TableCell>
-                    <TableCell className="text-sm">
-                      {session.locationInfo?.city || 'Unknown'}, {session.locationInfo?.country || 'N/A'}
-                    </TableCell>
-                    <TableCell>
-                      {session.sessionActive ? (
-                        <Badge className="bg-green-500">Active</Badge>
-                      ) : (
-                        <Badge variant="secondary">Ended</Badge>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* Member Financial Summary */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Member Financial Summary</CardTitle>
-          <CardDescription>Overview of all members and their financial positions</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Member</TableHead>
-                <TableHead>Member #</TableHead>
-                <TableHead className="text-right">Savings</TableHead>
-                <TableHead className="text-right">Shares</TableHead>
-                <TableHead className="text-right">Loan Balance</TableHead>
-                <TableHead className="text-right">Interest</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {members.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground">
-                    No members found
-                  </TableCell>
-                </TableRow>
-              ) : (
-                members.map((member) => (
-                  <TableRow key={member.id}>
-                    <TableCell className="font-medium">
-                      {member.firstName} {member.lastName}
-                    </TableCell>
-                    <TableCell>{member.memberNumber}</TableCell>
-                    <TableCell className="text-right font-semibold text-green-600">
-                      {formatCurrency(member.savingsBalance)}
-                    </TableCell>
-                    <TableCell className="text-right font-semibold text-blue-600">
-                      {formatCurrency(member.sharesBalance)}
-                    </TableCell>
-                    <TableCell className="text-right font-semibold text-orange-600">
-                      {formatCurrency(member.loanBalance)}
-                    </TableCell>
-                    <TableCell className="text-right font-semibold text-purple-600">
-                      {formatCurrency(member.interestBalance || 0)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={member.status === 'active' ? 'default' : 'secondary'}>
-                        {member.status}
-                      </Badge>
+                    <TableCell className="py-5">
+                      <div className="flex items-center gap-3">
+                        <div className={`p-1.5 rounded-lg ${session.sessionActive ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+                          <Activity className="w-4 h-4" />
+                        </div>
+                        <span className={`text-[10px] font-bold uppercase tracking-widest ${session.sessionActive ? 'text-emerald-600' : 'text-slate-400'}`}>
+                          {session.sessionActive ? 'Live Connect' : 'Disconnected'}
+                        </span>
+                      </div>
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

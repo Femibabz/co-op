@@ -1,0 +1,13 @@
+$ next build
+   Γû▓ Next.js 15.5.7
+   - Environments: .env.local
+
+
+> Build error occurred
+[Error: EINVAL: invalid argument, readlink 'C:\Users\ofemi\OneDrive\Desktop\Gravity_Osuolale\osuolale-cooperative-management\.next\package.json'] {
+  errno: -4071,
+  code: 'EINVAL',
+  syscall: 'readlink',
+  path: 'C:\\Users\\ofemi\\OneDrive\\Desktop\\Gravity_Osuolale\\osuolale-cooperative-management\\.next\\package.json'
+}
+error: script "build" exited with code 1

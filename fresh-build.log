@@ -1,0 +1,52 @@
+$ next build
+   Γû▓ Next.js 15.5.7
+   - Environments: .env.local
+
+   Creating an optimized production build ...
+ Γ£ô Compiled successfully in 16.5s
+   Skipping validation of types
+   Skipping linting
+   Collecting page data ...
+   Generating static pages (0/28) ...
+   Generating static pages (7/28) 
+   Generating static pages (14/28) 
+   Generating static pages (21/28) 
+ Γ£ô Generating static pages (28/28)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                 Size  First Load JS
+Γöî Γùï /                                    6.52 kB         178 kB
+Γö£ Γùï /_not-found                            996 B         103 kB
+Γö£ Γùï /admin                               4.44 kB         179 kB
+Γö£ Γùï /admin/access-logs                   4.47 kB         176 kB
+Γö£ Γùï /admin/applications                  3.66 kB         190 kB
+Γö£ Γùï /admin/bylaws                        7.54 kB         208 kB
+Γö£ Γùï /admin/calculate-interest            5.36 kB         177 kB
+Γö£ Γùï /admin/financial-updates             5.57 kB         206 kB
+Γö£ Γùï /admin/loans                            5 kB         188 kB
+Γö£ Γùï /admin/members                       6.36 kB         193 kB
+Γö£ Γùï /admin/process-payment               5.89 kB         207 kB
+Γö£ Γùï /apply                               8.64 kB         209 kB
+Γö£ Γùï /member                              6.73 kB         181 kB
+Γö£ Γùï /member/apply-loan                   4.44 kB         206 kB
+Γö£ Γùï /member/bylaws                        6.8 kB         190 kB
+Γö£ Γùï /member/profile                      7.45 kB         179 kB
+Γö£ Γùï /member/transactions                 4.02 kB         205 kB
+Γö£ Γùï /seed-bylaws                         4.28 kB         175 kB
+Γö£ Γùï /super-admin                         5.85 kB         180 kB
+Γö£ Γùï /super-admin/access-logs             2.16 kB         173 kB
+Γö£ Γùï /super-admin/database-setup          4.81 kB         166 kB
+Γö£ Γùï /super-admin/members                 7.23 kB         178 kB
+Γö£ Γùï /super-admin/societies               1.73 kB         173 kB
+Γö£ Γùï /super-admin/users                   2.96 kB         174 kB
+Γö£ Γùï /test-connection                     6.54 kB         181 kB
+Γöö Γùï /test-flow                           3.82 kB         178 kB
++ First Load JS shared by all             102 kB
+  Γö£ chunks/1255-404bb8de49c90395.js      45.8 kB
+  Γö£ chunks/4bd1b696-f785427dddbba9fb.js  54.2 kB
+  Γöö other shared chunks (total)             2 kB
+
+
+Γùï  (Static)  prerendered as static content
+

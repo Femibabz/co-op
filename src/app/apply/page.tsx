@@ -11,7 +11,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FileText, Book, Users, DollarSign, Scale, Eye, ChevronDown, ChevronUp } from 'lucide-react';
+import { FileText, Book, Users, DollarSign, Scale, Eye, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react';
 import { db } from '@/lib/mock-data';
 import { ByLaw } from '@/types';
 
@@ -161,19 +161,40 @@ export default function ApplyPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-        <Card className="max-w-md w-full">
-          <CardHeader>
-            <CardTitle className="text-center text-green-600">Application Submitted!</CardTitle>
-            <CardDescription className="text-center">
-              Your membership application has been received and is being reviewed by our administrators.
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+        {/* Success background decoration */}
+        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,rgba(16,185,129,0.1),transparent_50%)]"></div>
+
+        <Card className="max-w-md w-full premium-card relative z-10 animate-fadeIn overflow-hidden border-emerald-100 shadow-2xl shadow-emerald-200/50">
+          <div className="h-2 bg-gradient-to-r from-emerald-400 via-teal-500 to-emerald-600"></div>
+          <CardHeader className="pt-10">
+            <div className="w-20 h-20 rounded-3xl bg-emerald-50 flex items-center justify-center mx-auto mb-6 shadow-inner ring-4 ring-emerald-50/50">
+              <FileText className="w-10 h-10 text-emerald-600 animate-pulse" />
+            </div>
+            <CardTitle className="text-center text-3xl font-black text-slate-900 tracking-tight">Application Sent!</CardTitle>
+            <CardDescription className="text-center text-slate-500 font-medium px-4 pt-2">
+              Your membership application has been securely transmitted to the society governance board.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <p className="text-sm text-gray-600 text-center">
-              You will be contacted via email once your application has been processed.
-              Redirecting to home page...
-            </p>
+          <CardContent className="pb-10 pt-4 px-10">
+            <div className="space-y-6 text-center">
+              <div className="p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100 italic">
+                <p className="text-sm text-emerald-800 font-bold">
+                  "The journey of a thousand miles begins with a single step."
+                </p>
+              </div>
+              <p className="text-sm text-slate-500 font-semibold leading-relaxed">
+                Verification protocols are now in progress. You will receive an official notification via <span className="text-emerald-600 underline font-bold">{formData?.email || 'your email'}</span> once authorized.
+              </p>
+              <div className="pt-4 flex flex-col items-center gap-3">
+                <div className="flex gap-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-bounce [animation-delay:-0.3s]"></div>
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce [animation-delay:-0.15s]"></div>
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-bounce"></div>
+                </div>
+                <p className="text-[10px] uppercase font-black tracking-widest text-slate-400">Redirecting to society portal</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -181,318 +202,355 @@ export default function ApplyPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-6 sm:py-12 px-3 sm:px-4 lg:px-8">
-      <div className="max-w-2xl mx-auto">
-        <div className="text-center mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Membership Application</h1>
-          <p className="mt-2 text-sm sm:text-base text-gray-600">Join OsuOlale Cooperative Society</p>
+    <div className="min-h-screen bg-slate-50/50 py-12 sm:py-20 px-4 sm:px-6 lg:px-8 relative">
+      {/* Background decoration */}
+      <div className="fixed inset-0 -z-10 h-full w-full bg-white bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] opacity-40"></div>
+      <div className="fixed top-0 right-0 -z-10 w-[500px] h-[500px] bg-emerald-100/30 rounded-full blur-[100px] translate-x-1/2 -translate-y-1/2"></div>
+      <div className="fixed bottom-0 left-0 -z-10 w-[500px] h-[500px] bg-teal-100/30 rounded-full blur-[100px] -translate-x-1/2 translate-y-1/2"></div>
+
+      <div className="max-w-3xl mx-auto space-y-12">
+        <div className="text-center space-y-4 animate-fadeIn">
+          <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none px-4 py-1 text-xs font-black uppercase tracking-widest rounded-full mb-2">
+            Membership Onboarding
+          </Badge>
+          <h1 className="text-4xl sm:text-6xl font-black text-slate-900 tracking-tighter">
+            Join the <span className="text-emerald-600">OsuOlale</span> Legacy
+          </h1>
+          <p className="max-w-xl mx-auto text-lg text-slate-500 font-medium leading-relaxed">
+            Take your seat at the table of collective prosperity. Complete your application to access institutional growth.
+          </p>
         </div>
 
-        {/* Society By-Laws Section */}
+        {/* Global Constitution / By-Laws Section */}
         {byLaws.length > 0 && (
-          <Card className="mb-6 sm:mb-8">
-            <CardHeader>
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div className="flex-1">
-                  <CardTitle className="flex items-center text-base sm:text-lg">
-                    <FileText className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                    Society By-Laws
-                  </CardTitle>
-                  <CardDescription className="text-xs sm:text-sm mt-1">
-                    Review our society's governing principles before applying for membership
-                  </CardDescription>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowByLaws(!showByLaws)}
-                  className="shrink-0 w-full sm:w-auto">
-                  {showByLaws ? (
-                    <>
-                      Hide <ChevronUp className="h-4 w-4 ml-2" />
-                    </>
-                  ) : (
-                    <>
-                      View <ChevronDown className="h-4 w-4 ml-2" />
-                    </>
-                  )}
-                </Button>
+          <div className="premium-card overflow-hidden border-slate-200/60 shadow-xl shadow-slate-200/40 animate-fadeIn [animation-delay:100ms]">
+            <div className="px-8 py-8 border-b border-slate-100 bg-slate-50/50 sm:flex sm:items-center sm:justify-between gap-6">
+              <div className="flex-1 space-y-1">
+                <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
+                  <Book className="w-5 h-5 text-emerald-600" />
+                  Digital Constitution
+                </h2>
+                <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Principles of governance & conduct</p>
               </div>
-            </CardHeader>
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => setShowByLaws(!showByLaws)}
+                className="mt-4 sm:mt-0 h-11 px-6 rounded-xl font-bold border-2 hover:bg-slate-100 transition-all active:scale-95">
+                {showByLaws ? (
+                  <><span className="mr-2">Minimize Registry</span> <ChevronUp className="h-4 w-4" /></>
+                ) : (
+                  <><span className="mr-2">Explore Bylaws</span> <ChevronDown className="h-4 w-4" /></>
+                )}
+              </Button>
+            </div>
 
             {showByLaws && (
-              <CardContent>
-                <div className="space-y-3">
+              <CardContent className="p-8">
+                <div className="grid gap-4 sm:grid-cols-2">
                   {byLaws.map((bylaw) => (
                     <div
                       key={bylaw.id}
-                      className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 sm:p-4 border rounded-lg hover:bg-gray-50">
-                      <div className="flex items-start space-x-3 flex-1 min-w-0">
-                        <div className="text-blue-600 mt-0.5">
-                          {getCategoryIcon(bylaw.category)}
+                      className="group p-5 border-2 border-slate-100 rounded-2xl hover:border-emerald-200 hover:bg-emerald-50/30 transition-all duration-300">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div className="p-2.5 rounded-xl bg-slate-100 text-slate-600 group-hover:bg-emerald-100 group-hover:text-emerald-600 transition-colors">
+                            {getCategoryIcon(bylaw.category)}
+                          </div>
+                          <Badge className={`${getCategoryBadgeColor(bylaw.category)} border-none shadow-sm font-black uppercase text-[9px] tracking-widest px-2.5 py-1 rounded-lg`}>
+                            {bylaw.category}
+                          </Badge>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-gray-900 text-sm sm:text-base truncate">{bylaw.title}</h4>
-                          <p className="text-xs sm:text-sm text-gray-600 line-clamp-1">
-                            {bylaw.content.substring(0, 60)}...
+                        <div>
+                          <h4 className="font-extrabold text-slate-900 group-hover:text-emerald-700 transition-colors leading-tight">{bylaw.title}</h4>
+                          <p className="text-xs font-medium text-slate-400 mt-2 line-clamp-2 leading-relaxed">
+                            {bylaw.content.substring(0, 100)}...
                           </p>
                         </div>
-                      </div>
-                      <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-2">
-                        <Badge className={`${getCategoryBadgeColor(bylaw.category)} text-xs`}>
-                          {bylaw.category.charAt(0).toUpperCase() + bylaw.category.slice(1)}
-                        </Badge>
                         <Button
-                          variant="outline"
+                          variant="ghost"
                           size="sm"
                           onClick={() => openViewModal(bylaw)}
-                          className="text-xs">
-                          <Eye className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1" />
-                          <span className="hidden sm:inline">Read</span>
+                          className="w-full justify-between h-10 px-4 rounded-xl font-bold text-emerald-700 hover:bg-emerald-100 group/btn transition-all">
+                          Review Protocol
+                          <Eye className="w-4 h-4 opacity-0 group-hover/btn:opacity-100 transition-all translate-x-2 group-hover/btn:translate-x-0" />
                         </Button>
                       </div>
                     </div>
                   ))}
                 </div>
 
-                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
-                  <p className="text-xs sm:text-sm text-blue-800">
-                    📘 Please review all by-laws to understand your rights and responsibilities as a member.
+                <div className="mt-8 p-5 bg-gradient-to-br from-emerald-600 to-teal-700 rounded-2xl text-white shadow-lg shadow-emerald-700/20">
+                  <p className="text-sm font-bold flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
+                      <Scale className="w-4 h-4" />
+                    </div>
+                    By proceeding with your application, you acknowledge and agree to adhere to these foundational statutes.
                   </p>
                 </div>
               </CardContent>
             )}
-          </Card>
+          </div>
         )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Personal Information</CardTitle>
-            <CardDescription>
-              Please provide accurate information for your membership application
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="premium-card bg-white shadow-2xl shadow-slate-200/60 border-none overflow-hidden animate-fadeIn [animation-delay:200ms]">
+          <div className="px-8 py-10 border-b border-slate-100 bg-slate-50/30">
+            <h2 className="text-2xl font-black text-slate-900 tracking-tight">Application Dossier</h2>
+            <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mt-1">Please provide authentic identity and guarantor credentials</p>
+          </div>
+          <CardContent className="p-8 sm:p-12">
+            <form onSubmit={handleSubmit} className="space-y-12">
               {/* Personal Details */}
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="firstName">First Name *</Label>
-                  <Input
-                    id="firstName"
-                    name="firstName"
-                    value={formData.firstName}
+              <div className="space-y-8">
+                <div className="flex items-center gap-4">
+                  <div className="px-3 py-1 bg-emerald-600 text-white text-xs font-black rounded-lg">SEGMENT I</div>
+                  <h3 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em]">Personal Identity</h3>
+                  <div className="flex-1 h-[2px] bg-slate-100"></div>
+                </div>
+
+                <div className="grid gap-8 md:grid-cols-2">
+                  <div className="space-y-3">
+                    <Label htmlFor="firstName" className="text-xs font-black text-slate-600 uppercase tracking-widest">First Legal Name</Label>
+                    <Input
+                      id="firstName"
+                      name="firstName"
+                      value={formData.firstName}
+                      onChange={handleInputChange}
+                      placeholder="e.g. Samuel"
+                      className="h-14 px-6 rounded-2xl bg-slate-50 border-2 border-transparent focus:bg-white focus:border-emerald-500 transition-all font-semibold"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label htmlFor="lastName" className="text-xs font-black text-slate-600 uppercase tracking-widest">Family Name</Label>
+                    <Input
+                      id="lastName"
+                      name="lastName"
+                      value={formData.lastName}
+                      onChange={handleInputChange}
+                      placeholder="e.g. Adeniji"
+                      className="h-14 px-6 rounded-2xl bg-slate-50 border-2 border-transparent focus:bg-white focus:border-emerald-500 transition-all font-semibold"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-8 md:grid-cols-2">
+                  <div className="space-y-3">
+                    <Label htmlFor="email" className="text-xs font-black text-slate-600 uppercase tracking-widest">Email Endpoint</Label>
+                    <Input
+                      id="email"
+                      name="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      placeholder="samuel@clarusly.com"
+                      className="h-14 px-6 rounded-2xl bg-slate-50 border-2 border-transparent focus:bg-white focus:border-emerald-500 transition-all font-semibold"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label htmlFor="phone" className="text-xs font-black text-slate-600 uppercase tracking-widest">Telecommunications</Label>
+                    <Input
+                      id="phone"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                      placeholder="+234 800 000 0000"
+                      className="h-14 px-6 rounded-2xl bg-slate-50 border-2 border-transparent focus:bg-white focus:border-emerald-500 transition-all font-semibold"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <Label htmlFor="address" className="text-xs font-black text-slate-600 uppercase tracking-widest">Residence / Physical Location</Label>
+                  <Textarea
+                    id="address"
+                    name="address"
+                    value={formData.address}
                     onChange={handleInputChange}
-                    placeholder="Enter your first name"
+                    placeholder="Provide your accurate primary residence address..."
+                    className="min-h-[140px] p-6 rounded-2xl bg-slate-50 border-2 border-transparent focus:bg-white focus:border-emerald-500 transition-all font-semibold resize-none"
                     required
                   />
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">Last Name *</Label>
-                  <Input
-                    id="lastName"
-                    name="lastName"
-                    value={formData.lastName}
-                    onChange={handleInputChange}
-                    placeholder="Enter your last name"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email Address *</Label>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    placeholder="Enter your email"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number *</Label>
-                  <Input
-                    id="phone"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    placeholder="+234-xxx-xxx-xxxx"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="address">Address *</Label>
-                <Textarea
-                  id="address"
-                  name="address"
-                  value={formData.address}
-                  onChange={handleInputChange}
-                  placeholder="Enter your full address"
-                  required
-                />
               </div>
 
               {/* Guarantor Information */}
-              <div className="border-t pt-6">
-                <h3 className="text-lg font-medium mb-4">Guarantor Information</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  You must provide two guarantors who are current active members of the society
-                </p>
+              <div className="space-y-10">
+                <div className="flex items-center gap-4">
+                  <div className="px-3 py-1 bg-teal-600 text-white text-xs font-black rounded-lg">SEGMENT II</div>
+                  <h3 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em]">Endorsement Section</h3>
+                  <div className="flex-1 h-[2px] bg-slate-100"></div>
+                </div>
 
-                <div className="space-y-6">
-                  {/* First Guarantor */}
-                  <div className="p-4 border rounded-lg bg-blue-50 border-blue-200">
-                    <h4 className="font-medium text-blue-900 mb-3">First Guarantor *</h4>
-                    <div className="space-y-2">
-                      <Label htmlFor="guarantor1">Select Member</Label>
-                      <Select
-                        value={formData.guarantor1MemberId}
-                        onValueChange={(value) => setFormData(prev => ({ ...prev, guarantor1MemberId: value }))}
-                      >
-                        <SelectTrigger id="guarantor1">
-                          <SelectValue placeholder="Select a society member" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {members.map((member) => (
-                            <SelectItem
-                              key={member.id}
-                              value={member.id}
-                              disabled={member.id === formData.guarantor2MemberId}
-                            >
-                              {member.memberNumber} - {member.firstName} {member.lastName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {formData.guarantor1MemberId && (() => {
-                        const selected = members.find(m => m.id === formData.guarantor1MemberId);
-                        return selected ? (
-                          <div className="mt-2 text-sm text-blue-700">
-                            <p><strong>Name:</strong> {selected.firstName} {selected.lastName}</p>
-                            <p className="text-xs text-blue-600 italic">Contact information will be verified by admin</p>
-                          </div>
-                        ) : null;
-                      })()}
+                <div className="p-8 rounded-3xl bg-slate-50/50 border-2 border-slate-100 border-dashed text-center">
+                  <p className="text-sm font-bold text-slate-500 max-w-md mx-auto">
+                    Admission requires endorsement from <span className="text-slate-900">two established society members</span> in good standing.
+                  </p>
+                </div>
+
+                <div className="grid gap-8 md:grid-cols-2">
+                  {/* Primary Guarantor */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-black">01</div>
+                      <Label htmlFor="guarantor1" className="text-xs font-black text-slate-900 uppercase tracking-widest">Primary Guarantor</Label>
                     </div>
+                    <Select
+                      value={formData.guarantor1MemberId}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, guarantor1MemberId: value }))}
+                    >
+                      <SelectTrigger id="guarantor1" className="h-14 px-6 rounded-2xl bg-white border-2 border-slate-100 focus:border-emerald-500 transition-all font-bold text-slate-700">
+                        <SelectValue placeholder="Identify member" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-2xl border-none shadow-xl">
+                        {members.map((member) => (
+                          <SelectItem
+                            key={member.id}
+                            value={member.id}
+                            disabled={member.id === formData.guarantor2MemberId}
+                            className="h-12 px-4 font-bold rounded-xl focus:bg-emerald-50 focus:text-emerald-700"
+                          >
+                            {member.memberNumber} • {member.firstName} {member.lastName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
-                  {/* Second Guarantor */}
-                  <div className="p-4 border rounded-lg bg-green-50 border-green-200">
-                    <h4 className="font-medium text-green-900 mb-3">Second Guarantor *</h4>
-                    <div className="space-y-2">
-                      <Label htmlFor="guarantor2">Select Member</Label>
-                      <Select
-                        value={formData.guarantor2MemberId}
-                        onValueChange={(value) => setFormData(prev => ({ ...prev, guarantor2MemberId: value }))}
-                      >
-                        <SelectTrigger id="guarantor2">
-                          <SelectValue placeholder="Select a different society member" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {members.map((member) => (
-                            <SelectItem
-                              key={member.id}
-                              value={member.id}
-                              disabled={member.id === formData.guarantor1MemberId}
-                            >
-                              {member.memberNumber} - {member.firstName} {member.lastName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {formData.guarantor2MemberId && (() => {
-                        const selected = members.find(m => m.id === formData.guarantor2MemberId);
-                        return selected ? (
-                          <div className="mt-2 text-sm text-green-700">
-                            <p><strong>Name:</strong> {selected.firstName} {selected.lastName}</p>
-                            <p className="text-xs text-green-600 italic">Contact information will be verified by admin</p>
-                          </div>
-                        ) : null;
-                      })()}
+                  {/* Secondary Guarantor */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-teal-600 text-white flex items-center justify-center text-[10px] font-black">02</div>
+                      <Label htmlFor="guarantor2" className="text-xs font-black text-slate-900 uppercase tracking-widest">Secondary Guarantor</Label>
                     </div>
+                    <Select
+                      value={formData.guarantor2MemberId}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, guarantor2MemberId: value }))}
+                    >
+                      <SelectTrigger id="guarantor2" className="h-14 px-6 rounded-2xl bg-white border-2 border-slate-100 focus:border-teal-500 transition-all font-bold text-slate-700">
+                        <SelectValue placeholder="Identify member" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-2xl border-none shadow-xl">
+                        {members.map((member) => (
+                          <SelectItem
+                            key={member.id}
+                            value={member.id}
+                            disabled={member.id === formData.guarantor1MemberId}
+                            className="h-12 px-4 font-bold rounded-xl focus:bg-teal-50 focus:text-teal-700"
+                          >
+                            {member.memberNumber} • {member.firstName} {member.lastName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-
-                  {formData.guarantor1MemberId && formData.guarantor2MemberId && formData.guarantor1MemberId === formData.guarantor2MemberId && (
-                    <Alert variant="destructive">
-                      <AlertDescription>
-                        You must select two different guarantors
-                      </AlertDescription>
-                    </Alert>
-                  )}
                 </div>
               </div>
 
               {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
+                <Alert variant="destructive" className="rounded-2xl border-2 animate-fadeIn bg-rose-50 text-rose-700 border-rose-100">
+                  <AlertDescription className="font-bold flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4" />
+                    {error}
+                  </AlertDescription>
                 </Alert>
               )}
 
-              <div className="flex gap-4">
-                <Button type="submit" className="flex-1" disabled={isSubmitting}>
-                  {isSubmitting ? 'Submitting...' : 'Submit Application'}
+              <div className="flex flex-col sm:flex-row gap-4 pt-6">
+                <Button
+                  type="submit"
+                  className="btn-premium h-16 sm:flex-1 rounded-2xl font-black text-lg bg-emerald-600 hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-700/20 active:scale-95 disabled:opacity-50"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <div className="flex items-center gap-3">
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      <span>Verifying Dossier...</span>
+                    </div>
+                  ) : (
+                    'Transmit Application'
+                  )}
                 </Button>
-                <Button type="button" variant="outline" onClick={() => router.push('/')}>
-                  Cancel
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => router.push('/')}
+                  className="h-16 px-8 rounded-2xl font-bold border-2 text-slate-600 hover:bg-slate-100 transition-all"
+                >
+                  Dismiss
                 </Button>
               </div>
             </form>
           </CardContent>
-        </Card>
+        </div>
 
-        {/* By-Law View Modal */}
-        <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
-          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="flex items-center justify-between text-xl">
-                <div className="flex items-center space-x-3">
-                  <div className="text-blue-600">
+        {/* Support Section */}
+        <div className="text-center pb-20">
+          <p className="text-xs font-black text-slate-400 uppercase tracking-[0.3em] mb-4">Official Cooperative Liaison</p>
+          <div className="inline-flex items-center gap-4 px-6 py-3 bg-white/50 backdrop-blur-sm rounded-2xl border border-slate-100">
+            <div className="flex -space-x-3">
+              {[1, 2, 3].map(i => (
+                <div key={i} className={`w-8 h-8 rounded-full bg-slate-200 border-2 border-white flex items-center justify-center text-[10px] font-black text-slate-500`}>A{i}</div>
+              ))}
+            </div>
+            <p className="text-xs font-bold text-slate-500">Need assistance? <span className="text-emerald-600 cursor-pointer hover:underline underline-offset-4 font-black">Contact Help Desk</span></p>
+          </div>
+        </div>
+      </div>
+
+      {/* Constitution View Overlay */}
+      <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
+        <DialogContent className="max-w-3xl rounded-[2.5rem] border-none shadow-2xl p-0 overflow-hidden bg-white">
+          <div className="p-10 space-y-8 max-h-[85vh] overflow-y-auto custom-scrollbar">
+            <DialogHeader className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center">
                     {selectedByLaw && getCategoryIcon(selectedByLaw.category)}
                   </div>
-                  <span>{selectedByLaw?.title}</span>
+                  <div>
+                    <DialogTitle className="text-2xl font-black text-slate-900 tracking-tight">
+                      {selectedByLaw?.title}
+                    </DialogTitle>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Article Section Registry</p>
+                  </div>
                 </div>
-                <Badge className={getCategoryBadgeColor(selectedByLaw?.category || '')}>
-                  {selectedByLaw?.category ?
-                    selectedByLaw.category.charAt(0).toUpperCase() + selectedByLaw.category.slice(1) :
-                    'Unknown'
-                  }
+                <Badge className={`${getCategoryBadgeColor(selectedByLaw?.category || '')} border-none font-black uppercase text-[10px] tracking-widest px-3 py-1.5 rounded-xl`}>
+                  {selectedByLaw?.category}
                 </Badge>
-              </DialogTitle>
-              <DialogDescription>
-                Published on {selectedByLaw && new Date(selectedByLaw.createdAt).toLocaleDateString()}
-                {selectedByLaw && selectedByLaw.createdAt.getTime() !== selectedByLaw.updatedAt.getTime() &&
-                  ` • Last updated on ${new Date(selectedByLaw.updatedAt).toLocaleDateString()}`
+              </div>
+              <div className="w-full h-[1px] bg-slate-100"></div>
+              <DialogDescription className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                Official protocol published {selectedByLaw?.createdAt instanceof Date ? selectedByLaw.createdAt.toLocaleDateString() : '---'}
+                {selectedByLaw?.updatedAt instanceof Date && selectedByLaw.createdAt instanceof Date && selectedByLaw.createdAt.getTime() !== selectedByLaw.updatedAt.getTime() &&
+                  ` • Amended ${selectedByLaw.updatedAt.toLocaleDateString()}`
                 }
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-6">
-              <div className="prose prose-lg max-w-none">
-                <div className="bg-gray-50 p-6 rounded-lg border">
-                  <div className="text-gray-800 leading-relaxed">
-                    {selectedByLaw && formatContent(selectedByLaw.content)}
-                  </div>
-                </div>
-              </div>
-              <div className="flex justify-end">
-                <Button
-                  variant="outline"
-                  onClick={() => setIsViewModalOpen(false)}
-                >
-                  Close
-                </Button>
+
+            <div className="bg-slate-50/50 p-8 rounded-[2rem] border-2 border-slate-50">
+              <div className="text-slate-700 leading-relaxed font-semibold text-lg">
+                {selectedByLaw && formatContent(selectedByLaw.content)}
               </div>
             </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+
+            <div className="flex justify-end gap-3 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => setIsViewModalOpen(false)}
+                className="h-12 px-8 rounded-xl font-bold border-2 hover:bg-slate-100 transition-all"
+              >
+                Finished Review
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

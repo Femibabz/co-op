@@ -9,7 +9,25 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Save, X, User, MapPin, Phone, Mail, Calendar, Users } from 'lucide-react';
+import {
+  Edit,
+  Save,
+  X,
+  User,
+  MapPin,
+  Phone,
+  Mail,
+  Calendar,
+  Users,
+  ShieldCheck,
+  Briefcase,
+  TrendingUp,
+  CircleCheck,
+  CreditCard,
+  Building2,
+  Fingerprint,
+  AlertTriangle
+} from 'lucide-react';
 import { db } from '@/lib/mock-data';
 import { Member, MembershipApplication } from '@/types';
 
@@ -21,6 +39,7 @@ export default function ProfilePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [isLoaded, setIsLoaded] = useState(false);
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -45,30 +64,35 @@ export default function ProfilePage() {
   useEffect(() => {
     const loadMember = async () => {
       if (user?.role === 'member') {
-        const memberData = await db.getMemberByUserId(user.id);
-        if (memberData) {
-          setMember(memberData);
+        try {
+          const memberData = await db.getMemberByUserId(user.id);
+          if (memberData) {
+            setMember(memberData);
 
-          const profileData = {
-            firstName: memberData.firstName,
-            lastName: memberData.lastName,
-            email: memberData.email,
-            phone: memberData.phone,
-            address: memberData.address,
-            occupation: (memberData as any).occupation || '',
-            annualIncome: (memberData as any).annualIncome ? (memberData as any).annualIncome.toString() : '',
-          };
-          setFormData(profileData);
-          setOriginalData(profileData);
+            const profileData = {
+              firstName: memberData.firstName,
+              lastName: memberData.lastName,
+              email: memberData.email,
+              phone: memberData.phone,
+              address: memberData.address,
+              occupation: (memberData as any).occupation || '',
+              annualIncome: (memberData as any).annualIncome ? (memberData as any).annualIncome.toString() : '',
+            };
+            setFormData(profileData);
+            setOriginalData(profileData);
 
-          // Load application to get guarantor information
-          const applications = await db.getApplications();
-          const memberApplication = applications.find(
-            app => app.email === memberData.email && app.status === 'approved'
-          );
-          if (memberApplication) {
-            setApplication(memberApplication);
+            const applications = await db.getApplications();
+            const memberApplication = applications.find(
+              app => app.email === memberData.email && app.status === 'approved'
+            );
+            if (memberApplication) {
+              setApplication(memberApplication);
+            }
           }
+          setIsLoaded(true);
+        } catch (err) {
+          console.error('Error loading profile:', err);
+          setIsLoaded(true);
         }
       }
     };
@@ -84,23 +108,7 @@ export default function ProfilePage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleEdit = () => {
-    setIsEditing(true);
-    setError('');
-    setSuccess('');
-  };
-
-  const handleCancel = () => {
-    setFormData(originalData);
-    setIsEditing(false);
-    setError('');
-    setSuccess('');
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -112,37 +120,15 @@ export default function ProfilePage() {
     setSuccess('');
 
     try {
-      // Validation
       if (!formData.firstName.trim() || !formData.lastName.trim()) {
         setError('First name and last name are required');
         return;
       }
-
       if (!formData.email.trim() || !formData.email.includes('@')) {
         setError('Please enter a valid email address');
         return;
       }
 
-      if (!formData.phone.trim()) {
-        setError('Phone number is required');
-        return;
-      }
-
-      if (!formData.address.trim()) {
-        setError('Address is required');
-        return;
-      }
-
-      // Check if email is already taken by another user (if email changed)
-      if (formData.email !== originalData.email) {
-        const existingUser = await db.findUserByEmail(formData.email);
-        if (existingUser && existingUser.id !== user.id) {
-          setError('This email address is already in use by another member');
-          return;
-        }
-      }
-
-      // Update member information
       const updatedMember = await db.updateMember(member.id, {
         firstName: formData.firstName.trim(),
         lastName: formData.lastName.trim(),
@@ -154,20 +140,6 @@ export default function ProfilePage() {
       } as any);
 
       if (updatedMember) {
-        // Create a transaction record for profile update
-        db.createTransaction({
-          memberId: member.id,
-          type: 'profile_update',
-          amount: 0,
-          description: `Profile updated: ${Object.keys(formData).filter(key =>
-            formData[key as keyof typeof formData] !== originalData[key as keyof typeof originalData]
-          ).join(', ')}`,
-          date: new Date(),
-          balanceAfter: member.savingsBalance,
-          referenceNumber: `PRF${Date.now()}`,
-          processedBy: user.email,
-        });
-
         setMember(updatedMember);
         const newData = {
           firstName: updatedMember.firstName,
@@ -180,10 +152,10 @@ export default function ProfilePage() {
         };
         setOriginalData(newData);
         setIsEditing(false);
-        setSuccess('Profile updated successfully and synced with admin portal');
+        setSuccess('Profile updated effectively');
       }
     } catch (err) {
-      setError('Failed to update profile. Please try again.');
+      setError('Failed to update profile.');
     } finally {
       setIsSubmitting(false);
     }
@@ -196,368 +168,239 @@ export default function ProfilePage() {
     return `${member.firstName.charAt(0)}${member.lastName.charAt(0)}`.toUpperCase();
   };
 
-  if (!member) {
+  if (!isLoaded) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p>Loading profile...</p>
-        </div>
+      <div className="flex flex-col items-center justify-center py-20 gap-4">
+        <div className="w-10 h-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+        <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">Accessing Profile</p>
       </div>
     );
   }
 
+  if (!member) return null;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 animate-fadeIn">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Member Profile</h2>
-          <p className="text-muted-foreground">
-            View and update your personal information
-          </p>
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div className="space-y-1">
+          <p className="text-sm font-bold text-primary uppercase tracking-widest">Personal Account</p>
+          <h2 className="text-4xl font-extrabold text-slate-900 tracking-tight">Identity & Security</h2>
         </div>
-        {!isEditing ? (
-          <Button onClick={handleEdit}>
-            <Edit className="h-4 w-4 mr-2" />
-            Edit Profile
-          </Button>
-        ) : (
-          <div className="flex space-x-2">
-            <Button variant="outline" onClick={handleCancel}>
-              <X className="h-4 w-4 mr-2" />
-              Cancel
+        <div className="flex items-center gap-2">
+          {!isEditing ? (
+            <Button className="btn-premium flex items-center gap-2" onClick={() => setIsEditing(true)}>
+              <Edit className="w-4 h-4" />
+              Edit Profile
             </Button>
-            <Button onClick={handleSave} disabled={isSubmitting || !hasChanges}>
-              <Save className="h-4 w-4 mr-2" />
-              {isSubmitting ? 'Saving...' : 'Save Changes'}
-            </Button>
-          </div>
-        )}
+          ) : (
+            <div className="flex gap-2">
+              <Button variant="outline" className="rounded-xl border-2 font-bold" onClick={() => { setFormData(originalData); setIsEditing(false); }}>
+                Cancel
+              </Button>
+              <Button className="btn-premium flex items-center gap-2" onClick={handleSave} disabled={isSubmitting || !hasChanges}>
+                {isSubmitting ? (
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                ) : <Save className="w-4 h-4" />}
+                Save Changes
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
 
       {(error || success) && (
-        <Alert variant={error ? "destructive" : "default"}>
-          <AlertDescription>{error || success}</AlertDescription>
-        </Alert>
+        <div className={`p-4 rounded-2xl flex items-center gap-3 animate-fadeIn ${error ? 'bg-rose-50 text-rose-700 border border-rose-100' : 'bg-emerald-50 text-emerald-700 border border-emerald-100'}`}>
+          {error ? <AlertTriangle className="w-5 h-5" /> : <CircleCheck className="w-5 h-5" />}
+          <p className="text-sm font-bold">{error || success}</p>
+        </div>
       )}
 
-      <div className="grid gap-6 md:grid-cols-3">
-        {/* Member Info Card */}
-        <div className="md:col-span-1">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <User className="h-5 w-5 mr-2" />
-                Member Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-center">
-              {/* Simple Avatar */}
-              <div className="w-32 h-32 rounded-full bg-blue-500 flex items-center justify-center text-white text-2xl font-bold border-4 border-gray-200 mx-auto mb-6">
+      <div className="grid gap-8 lg:grid-cols-3">
+        {/* Left Column - Card */}
+        <div className="space-y-6">
+          <div className="premium-card overflow-hidden">
+            <div className="h-24 bg-gradient-to-r from-primary to-emerald-600"></div>
+            <div className="px-6 pb-8 -mt-12 text-center space-y-4">
+              <div className="w-24 h-24 rounded-3xl bg-white shadow-xl flex items-center justify-center text-primary text-3xl font-extrabold mx-auto border-4 border-white relative overflow-hidden group">
+                <div className="absolute inset-0 bg-primary opacity-0 group-hover:opacity-10 transition-opacity"></div>
                 {getInitials()}
               </div>
-
-              <div className="space-y-3">
-                <div className="text-center">
-                  <Badge variant={member.status === 'active' ? 'default' : 'secondary'}>
-                    {member.status.toUpperCase()}
+              <div className="space-y-1">
+                <h3 className="text-2xl font-extrabold text-slate-900 tracking-tight">{member.firstName} {member.lastName}</h3>
+                <div className="flex items-center justify-center gap-2">
+                  <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none px-2 rounded-lg font-bold text-[10px] uppercase">
+                    {member.status} Member
                   </Badge>
-                </div>
-                <div>
-                  <Label className="text-xs font-medium text-gray-600">MEMBER NUMBER</Label>
-                  <p className="text-sm font-bold">{member.memberNumber}</p>
-                </div>
-                <div>
-                  <Label className="text-xs font-medium text-gray-600">DATE JOINED</Label>
-                  <p className="text-sm flex items-center justify-center">
-                    <Calendar className="h-4 w-4 mr-1" />
-                    {member.dateJoined.toLocaleDateString()}
-                  </p>
+                  <span className="text-xs text-slate-400 font-bold uppercase tracking-widest">{member.memberNumber}</span>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+              <div className="pt-4 grid grid-cols-2 gap-4 border-t border-slate-100 italic">
+                <div className="text-center">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Member Since</p>
+                  <p className="text-xs font-bold text-slate-600 mt-1">{member.dateJoined.toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Type</p>
+                  <p className="text-xs font-bold text-slate-600 mt-1">Full Member</p>
+                </div>
+              </div>
+            </div>
+          </div>
 
-          {/* Financial Summary */}
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle>Financial Summary</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex justify-between">
-                <span className="text-sm">Shares Balance:</span>
-                <span className="text-sm font-medium">{formatCurrency(member.sharesBalance)}</span>
+          <div className="premium-card p-6 space-y-6">
+            <div className="flex items-center justify-between">
+              <h4 className="font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-emerald-500" />
+                Asset Standing
+              </h4>
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Shares</span>
+                  <span className="text-sm font-extrabold text-slate-900">{formatCurrency(member.sharesBalance)}</span>
+                </div>
+                <div className="flex flex-col text-right">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Savings</span>
+                  <span className="text-sm font-extrabold text-slate-900">{formatCurrency(member.savingsBalance)}</span>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-sm">Savings Balance:</span>
-                <span className="text-sm font-medium">{formatCurrency(member.savingsBalance)}</span>
+              <div className="p-4 rounded-2xl bg-slate-900 text-white space-y-1 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl"></div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Consolidated Balance</p>
+                <p className="text-xl font-extrabold tracking-tight">{formatCurrency(member.sharesBalance + member.savingsBalance)}</p>
               </div>
-              <hr className="my-2" />
-              <div className="flex justify-between">
-                <span className="text-sm font-medium">Total with Organization:</span>
-                <span className="text-sm font-bold text-green-600">
-                  {formatCurrency(member.sharesBalance + member.savingsBalance)}
-                </span>
-              </div>
-              {(member.loanBalance > 0 || member.interestBalance > 0) && (
-                <>
-                  <hr className="my-2" />
-                  {member.loanBalance > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-sm">Outstanding Loan:</span>
-                      <span className="text-sm font-medium text-red-600">
-                        {formatCurrency(member.loanBalance)}
-                      </span>
-                    </div>
-                  )}
-                  {member.interestBalance > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-sm">Interest Due:</span>
-                      <span className="text-sm font-medium text-orange-600">
-                        {formatCurrency(member.interestBalance)}
-                      </span>
-                    </div>
-                  )}
-                </>
-              )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          {/* Membership Application - Guarantors */}
           {application && (
-            <Card className="mt-6">
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Users className="h-5 w-5 mr-2" />
-                  Membership Guarantors
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-xs text-muted-foreground mb-4">
-                  These members vouched for you when you applied for membership on {application.appliedAt.toLocaleDateString()}
-                </p>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  {/* First Guarantor */}
-                  <div className="p-4 border rounded-lg bg-blue-50 border-blue-200">
-                    <h4 className="font-medium text-blue-900 mb-3">First Guarantor</h4>
-                    <div className="space-y-2 text-sm">
-                      <div>
-                        <Label className="text-xs text-blue-700">Name</Label>
-                        <p className="font-medium">{application.guarantor1Name}</p>
-                      </div>
-                      <div>
-                        <Label className="text-xs text-blue-700">Member Number</Label>
-                        <p className="font-medium">{application.guarantor1MemberNumber}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Second Guarantor */}
-                  <div className="p-4 border rounded-lg bg-green-50 border-green-200">
-                    <h4 className="font-medium text-green-900 mb-3">Second Guarantor</h4>
-                    <div className="space-y-2 text-sm">
-                      <div>
-                        <Label className="text-xs text-green-700">Name</Label>
-                        <p className="font-medium">{application.guarantor2Name}</p>
-                      </div>
-                      <div>
-                        <Label className="text-xs text-green-700">Member Number</Label>
-                        <p className="font-medium">{application.guarantor2MemberNumber}</p>
-                      </div>
-                    </div>
+            <div className="premium-card p-6 space-y-6">
+              <div className="space-y-1">
+                <h4 className="font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+                  <Users className="w-4 h-4 text-indigo-500" />
+                  Endorsements
+                </h4>
+                <p className="text-xs text-slate-400 font-medium">Guarantors who vouched for your membership.</p>
+              </div>
+              <div className="space-y-3">
+                <div className="p-3 rounded-xl bg-indigo-50/50 border border-indigo-100/50 flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs">G1</div>
+                  <div className="flex-1">
+                    <p className="text-xs font-extrabold text-slate-900">{application.guarantor1Name}</p>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase">{application.guarantor1MemberNumber}</p>
                   </div>
                 </div>
-
-                <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-md">
-                  <p className="text-xs text-gray-700">
-                    ℹ️ Your guarantors are trusted members who supported your application. Their endorsement helped you join the society.
-                  </p>
+                <div className="p-3 rounded-xl bg-indigo-50/50 border border-indigo-100/50 flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs">G2</div>
+                  <div className="flex-1">
+                    <p className="text-xs font-extrabold text-slate-900">{application.guarantor2Name}</p>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase">{application.guarantor2MemberNumber}</p>
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           )}
         </div>
 
-        {/* Personal Information Form */}
-        <div className="md:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Personal Information</CardTitle>
-              <CardDescription>
-                {isEditing
-                  ? "Update your personal details below. Changes will be reflected across the system."
-                  : "Your current personal information as stored in our system."
-                }
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSave} className="space-y-6">
-                <div className="grid gap-4 md:grid-cols-2">
+        {/* Right Column - Form */}
+        <div className="lg:col-span-2 space-y-8">
+          <div className="premium-card p-8">
+            <form onSubmit={handleSave} className="space-y-10">
+              <div className="space-y-6">
+                <div className="flex items-center gap-2 border-b border-slate-100 pb-4">
+                  <Fingerprint className="w-5 h-5 text-primary" />
+                  <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">Core Bio-data</h3>
+                </div>
+
+                <div className="grid gap-6 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="firstName">First Name *</Label>
+                    <Label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Legal First Name</Label>
                     {isEditing ? (
-                      <Input
-                        id="firstName"
-                        name="firstName"
-                        value={formData.firstName}
-                        onChange={handleInputChange}
-                        placeholder="Enter your first name"
-                        required
-                      />
+                      <Input name="firstName" value={formData.firstName} onChange={handleInputChange} className="h-11 bg-slate-50/50 border-slate-200 focus:bg-white rounded-xl font-bold" />
                     ) : (
-                      <p className="text-sm py-2 px-3 bg-gray-50 rounded-md border">
-                        {member.firstName}
-                      </p>
+                      <p className="h-11 flex items-center px-4 bg-slate-50/30 rounded-xl font-bold text-slate-700">{member.firstName}</p>
                     )}
                   </div>
-
                   <div className="space-y-2">
-                    <Label htmlFor="lastName">Last Name *</Label>
+                    <Label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Legal Last Name</Label>
                     {isEditing ? (
-                      <Input
-                        id="lastName"
-                        name="lastName"
-                        value={formData.lastName}
-                        onChange={handleInputChange}
-                        placeholder="Enter your last name"
-                        required
-                      />
+                      <Input name="lastName" value={formData.lastName} onChange={handleInputChange} className="h-11 bg-slate-50/50 border-slate-200 focus:bg-white rounded-xl font-bold" />
                     ) : (
-                      <p className="text-sm py-2 px-3 bg-gray-50 rounded-md border">
-                        {member.lastName}
-                      </p>
+                      <p className="h-11 flex items-center px-4 bg-slate-50/30 rounded-xl font-bold text-slate-700">{member.lastName}</p>
                     )}
                   </div>
                 </div>
+              </div>
 
+              <div className="space-y-6">
+                <div className="flex items-center gap-2 border-b border-slate-100 pb-4">
+                  <Phone className="w-5 h-5 text-primary" />
+                  <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">Contact Information</h3>
+                </div>
+
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Primary Email</Label>
+                    {isEditing ? (
+                      <Input name="email" value={formData.email} onChange={handleInputChange} className="h-11 bg-slate-50/50 border-slate-200 focus:bg-white rounded-xl font-bold" />
+                    ) : (
+                      <p className="h-11 flex items-center px-4 bg-slate-50/30 rounded-xl font-bold text-slate-700">{member.email}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Mobile Line</Label>
+                    {isEditing ? (
+                      <Input name="phone" value={formData.phone} onChange={handleInputChange} className="h-11 bg-slate-50/50 border-slate-200 focus:bg-white rounded-xl font-bold" />
+                    ) : (
+                      <p className="h-11 flex items-center px-4 bg-slate-50/30 rounded-xl font-bold text-slate-700">{member.phone}</p>
+                    )}
+                  </div>
+                </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="flex items-center">
-                    <Mail className="h-4 w-4 mr-1" />
-                    Email Address *
-                  </Label>
+                  <Label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Permanent Residence</Label>
                   {isEditing ? (
-                    <Input
-                      id="email"
-                      name="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      placeholder="Enter your email address"
-                      required
-                    />
+                    <Textarea name="address" value={formData.address} onChange={handleInputChange} rows={3} className="bg-slate-50/50 border-slate-200 focus:bg-white rounded-xl font-bold pt-4" />
                   ) : (
-                    <p className="text-sm py-2 px-3 bg-gray-50 rounded-md border">
-                      {member.email}
-                    </p>
+                    <p className="min-h-[88px] p-4 bg-slate-50/30 rounded-xl font-bold text-slate-700 leading-relaxed">{member.address}</p>
                   )}
                 </div>
+              </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="phone" className="flex items-center">
-                    <Phone className="h-4 w-4 mr-1" />
-                    Phone Number *
-                  </Label>
-                  {isEditing ? (
-                    <Input
-                      id="phone"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleInputChange}
-                      placeholder="Enter your phone number"
-                      required
-                    />
-                  ) : (
-                    <p className="text-sm py-2 px-3 bg-gray-50 rounded-md border">
-                      {member.phone}
-                    </p>
-                  )}
+              <div className="space-y-6">
+                <div className="flex items-center gap-2 border-b border-slate-100 pb-4">
+                  <Briefcase className="w-5 h-5 text-primary" />
+                  <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">Professional Standing</h3>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="address" className="flex items-center">
-                    <MapPin className="h-4 w-4 mr-1" />
-                    Address *
-                  </Label>
-                  {isEditing ? (
-                    <Textarea
-                      id="address"
-                      name="address"
-                      value={formData.address}
-                      onChange={handleInputChange}
-                      placeholder="Enter your full address"
-                      rows={3}
-                      required
-                    />
-                  ) : (
-                    <p className="text-sm py-2 px-3 bg-gray-50 rounded-md border min-h-[80px]">
-                      {member.address}
-                    </p>
-                  )}
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-6 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="occupation">Occupation</Label>
+                    <Label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Occupation</Label>
                     {isEditing ? (
-                      <Input
-                        id="occupation"
-                        name="occupation"
-                        value={formData.occupation}
-                        onChange={handleInputChange}
-                        placeholder="Enter your occupation"
-                      />
+                      <Input name="occupation" value={formData.occupation} onChange={handleInputChange} className="h-11 bg-slate-50/50 border-slate-200 focus:bg-white rounded-xl font-bold" />
                     ) : (
-                      <p className="text-sm py-2 px-3 bg-gray-50 rounded-md border">
-                        {(member as any).occupation || 'Not specified'}
-                      </p>
+                      <p className="h-11 flex items-center px-4 bg-slate-50/30 rounded-xl font-bold text-slate-700">{(member as any).occupation || 'Not Listed'}</p>
                     )}
                   </div>
-
                   <div className="space-y-2">
-                    <Label htmlFor="annualIncome">Annual Income (NGN)</Label>
+                    <Label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Est. Monthly Inflow</Label>
                     {isEditing ? (
-                      <Input
-                        id="annualIncome"
-                        name="annualIncome"
-                        type="number"
-                        value={formData.annualIncome}
-                        onChange={handleInputChange}
-                        placeholder="Enter your annual income"
-                      />
+                      <Input name="annualIncome" type="number" value={formData.annualIncome} onChange={handleInputChange} className="h-11 bg-slate-50/50 border-slate-200 focus:bg-white rounded-xl font-bold" />
                     ) : (
-                      <p className="text-sm py-2 px-3 bg-gray-50 rounded-md border">
-                        {(member as any).annualIncome ? formatCurrency((member as any).annualIncome) : 'Not specified'}
-                      </p>
+                      <p className="h-11 flex items-center px-4 bg-slate-50/30 rounded-xl font-bold text-slate-700">{(member as any).annualIncome ? formatCurrency((member as any).annualIncome) : 'Not Listed'}</p>
                     )}
                   </div>
                 </div>
+              </div>
 
-                {isEditing && hasChanges && (
-                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-md">
-                    <h4 className="font-medium text-blue-800 mb-2">Changes to be saved:</h4>
-                    <ul className="text-sm text-blue-700 space-y-1">
-                      {Object.keys(formData).filter(key =>
-                        formData[key as keyof typeof formData] !== originalData[key as keyof typeof originalData]
-                      ).map(key => (
-                        <li key={key}>
-                          • {key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1')}:
-                          <span className="line-through mx-1">{originalData[key as keyof typeof originalData]}</span>
-                          → <span className="font-medium">{formData[key as keyof typeof formData]}</span>
-                        </li>
-                      ))}
-                    </ul>
-                    <div className="mt-3 p-2 bg-green-100 border border-green-200 rounded">
-                      <p className="text-xs text-green-700">
-                        ✅ Changes will automatically sync with the admin portal
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </form>
-            </CardContent>
-          </Card>
+              <div className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                <ShieldCheck className="w-6 h-6 text-emerald-500 flex-shrink-0" />
+                <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                  Your personal data is encrypted and handled with the highest security standards. Some fields may require verification by our agents after amendment.
+                </p>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
     </div>

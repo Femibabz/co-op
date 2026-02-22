@@ -1802,8 +1802,8 @@ export class MockDatabase {
       // Check for different country
       const lastSession = userPreviousSessions[0];
       if (lastSession.locationInfo.country &&
-          session.locationInfo.country &&
-          lastSession.locationInfo.country !== session.locationInfo.country) {
+        session.locationInfo.country &&
+        lastSession.locationInfo.country !== session.locationInfo.country) {
         suspiciousReasons.push('Login from different country');
       }
 

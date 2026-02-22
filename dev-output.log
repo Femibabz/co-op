@@ -1,0 +1,24 @@
+$ next dev -H 0.0.0.0
+ ΓÜá Port 3000 is in use by process 17552, using available port 3001 instead.
+   Γû▓ Next.js 15.5.7
+   - Local:        http://localhost:3001
+   - Network:      http://0.0.0.0:3001
+   - Environments: .env.local
+
+ Γ£ô Starting...
+ Γ£ô Ready in 4.3s
+ Γùï Compiling / ...
+ Γ£ô Compiled / in 8.3s (773 modules)
+ GET / 200 in 9321ms
+ Γ£ô Compiled in 1072ms (338 modules)
+ Γùï Compiling /apply ...
+ Γ£ô Compiled /apply in 1848ms (913 modules)
+ GET /apply 200 in 2305ms
+ ΓÜá Found a change in next.config.js. Restarting the server to apply the changes...
+   Γû▓ Next.js 15.5.7
+   - Local:        http://localhost:3001
+   - Network:      http://0.0.0.0:3001
+   - Environments: .env.local
+
+ Γ£ô Starting...
+ Γ£ô Ready in 3.7s

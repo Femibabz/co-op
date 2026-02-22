@@ -40,82 +40,68 @@ export default function SuperAdminLayout({
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-gradient-to-r from-purple-600 to-indigo-600 shadow-lg border-b border-purple-700">
+    <div className="min-h-screen bg-slate-50/50">
+      {/* Background decoration */}
+      <div className="fixed inset-0 -z-10 h-full w-full bg-white bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] opacity-40"></div>
+
+      {/* Header - Glassmorphic */}
+      <header className="sticky top-0 z-50 w-full border-b border-indigo-200/20 bg-indigo-700/80 backdrop-blur-md shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <h1 className="text-xl font-bold text-white">OsuOlale - Super Admin</h1>
-              <Badge variant="secondary" className="ml-3 bg-yellow-400 text-gray-900 font-bold">
-                SUPER ADMIN
-              </Badge>
+            <div className="flex items-center space-x-3">
+              <div className="bg-white/20 p-2 rounded-xl backdrop-blur-sm border border-white/30 shadow-inner">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+              </div>
+              <div className="flex flex-col">
+                <h1 className="text-lg font-extrabold text-white tracking-tight leading-none">OsuOlale</h1>
+                <span className="text-[10px] font-bold text-indigo-100 uppercase tracking-widest mt-0.5">Super Admin</span>
+              </div>
             </div>
+
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-white">Welcome, Platform Admin</span>
-              <Button variant="outline" onClick={handleLogout} className="bg-white text-purple-600 hover:bg-gray-100">
-                Logout
+              <span className="hidden sm:inline-block text-xs font-bold text-white uppercase tracking-wider bg-white/10 px-3 py-1 rounded-full border border-white/20">Platform Executive</span>
+              <Button
+                variant="outline"
+                onClick={handleLogout}
+                className="bg-white/10 text-white border-white/30 hover:bg-white/20 hover:text-white rounded-xl font-extrabold transition-all duration-300"
+              >
+                Sign Out
               </Button>
             </div>
           </div>
         </div>
       </header>
-      <nav className="bg-white shadow-sm border-b">
+
+      {/* Desktop Navigation - Tabbed */}
+      <nav className="bg-white/70 backdrop-blur-md border-b border-slate-200/60 sticky top-16 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex space-x-8">
-            <Link
-              href="/super-admin"
-              className={`border-b-2 py-4 px-1 text-sm font-medium ${
-                pathname === '/super-admin'
-                  ? 'border-purple-500 text-purple-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Dashboard
-            </Link>
-            <Link
-              href="/super-admin/users"
-              className={`border-b-2 py-4 px-1 text-sm font-medium ${
-                pathname === '/super-admin/users'
-                  ? 'border-purple-500 text-purple-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Users
-            </Link>
-            <Link
-              href="/super-admin/members"
-              className={`border-b-2 py-4 px-1 text-sm font-medium ${
-                pathname === '/super-admin/members'
-                  ? 'border-purple-500 text-purple-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Members
-            </Link>
-            <Link
-              href="/super-admin/database-setup"
-              className={`border-b-2 py-4 px-1 text-sm font-medium ${
-                pathname === '/super-admin/database-setup'
-                  ? 'border-purple-500 text-purple-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Database Setup
-            </Link>
-            <Link
-              href="/super-admin/access-logs"
-              className={`border-b-2 py-4 px-1 text-sm font-medium ${
-                pathname === '/super-admin/access-logs'
-                  ? 'border-purple-500 text-purple-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Access Logs
-            </Link>
+          <div className="flex space-x-1 overflow-x-auto scrollbar-hide py-2">
+            {[
+              { href: '/super-admin', label: 'Dashboard' },
+              { href: '/super-admin/users', label: 'Users' },
+              { href: '/super-admin/members', label: 'Members' },
+              { href: '/super-admin/database-setup', label: 'Database Setup' },
+              { href: '/super-admin/access-logs', label: 'Access Logs' },
+            ].map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`whitespace-nowrap rounded-xl py-2 px-4 text-xs font-bold transition-all duration-300 ${pathname === link.href
+                    ? 'bg-indigo-50 text-indigo-700 shadow-sm border border-indigo-100'
+                    : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+                  }`}
+              >
+                {link.label}
+              </Link>
+            ))}
           </div>
         </div>
       </nav>
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto py-8 sm:px-6 lg:px-8 animate-fadeIn">
         <div className="px-4 py-6 sm:px-0">
           {children}
         </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,6 +13,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { db } from '@/lib/mock-data';
 import { getLoanSummary, formatNaira } from '@/lib/loan-utils';
 import { Member, User, Transaction } from '@/types';
+import { Users, FileText, Activity, ShieldCheck, ArrowRight } from 'lucide-react';
 
 export default function MembersPage() {
   const [members, setMembers] = useState<Member[]>([]);
@@ -35,7 +37,7 @@ export default function MembersPage() {
     savingsBalance: '0',
   });
 
-// Edit functionality moved to Financial Updates page
+  // Edit functionality moved to Financial Updates page
 
   useEffect(() => {
     loadMembers();
@@ -69,7 +71,7 @@ export default function MembersPage() {
     setSelectedMemberTransactions(transactions);
   };
 
-// Edit functionality moved to Financial Updates page
+  // Edit functionality moved to Financial Updates page
 
   const handleNewMemberSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,64 +123,66 @@ export default function MembersPage() {
     }
   };
 
-// Edit functionality moved to Financial Updates page
+  // Edit functionality moved to Financial Updates page
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Members Management</h2>
-          <p className="text-muted-foreground">
-            Manage society members and their account details
-          </p>
+    <div className="space-y-10">
+      {/* Background decoration */}
+      <div className="fixed inset-0 -z-10 h-full w-full bg-white bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] opacity-40"></div>
+
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div className="space-y-1">
+          <p className="text-sm font-bold text-emerald-600 uppercase tracking-widest">Global Registry</p>
+          <h2 className="text-4xl font-extrabold text-slate-900 tracking-tight">Members Management</h2>
+          <p className="text-slate-500 font-medium">Coordinate and authorize society member accounts</p>
         </div>
-        <Button onClick={() => setIsAddingMember(true)}>
-          Add New Member
+        <Button onClick={() => setIsAddingMember(true)} className="btn-premium bg-emerald-600 hover:bg-emerald-700 h-12 px-8 rounded-xl font-bold shadow-lg shadow-emerald-200/50 transition-all hover:scale-105 active:scale-95">
+          <Users className="w-5 h-5 mr-3" />
+          Onboard New Member
         </Button>
       </div>
 
       {(error || success) && (
-        <Alert variant={error ? "destructive" : "default"}>
-          <AlertDescription>{error || success}</AlertDescription>
+        <Alert variant={error ? "destructive" : "default"} className="rounded-2xl border-2 shadow-sm animate-fadeIn">
+          <AlertDescription className="font-bold">{error || success}</AlertDescription>
         </Alert>
       )}
 
-      {/* Search */}
-      <div className="flex items-center space-x-2">
-        <Input
-          placeholder="Search members..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="max-w-sm"
-        />
-        <span className="text-sm text-muted-foreground">
-          {filteredMembers.length} member(s) found
-        </span>
+      {/* Search & Statistics Inline */}
+      <div className="flex flex-col md:flex-row items-center gap-4 bg-white/50 backdrop-blur-sm p-4 rounded-2xl border border-slate-200/60 shadow-sm">
+        <div className="relative w-full max-w-md">
+          <Input
+            placeholder="Search by name, email or ID..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="h-12 pl-12 rounded-xl bg-white border-slate-200 focus:ring-emerald-500 border-2 font-medium transition-all"
+          />
+          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 rounded-xl border border-emerald-100">
+          <span className="text-sm font-black text-emerald-700 tabular-nums">{filteredMembers.length}</span>
+          <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Found in Registry</span>
+        </div>
       </div>
 
       {/* Members Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Members List</CardTitle>
-          <CardDescription>
-            All registered society members
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+      <div className="premium-card overflow-hidden">
+        <div className="px-8 py-6 border-b border-slate-100 bg-slate-50/50">
+          <h3 className="text-lg font-extrabold text-slate-900">Active Membership Directory</h3>
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Official platform records</p>
+        </div>
+        <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>Member ID</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Shares</TableHead>
-                <TableHead>Savings</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Loan Balance</TableHead>
-                <TableHead>Loan Duration</TableHead>
-                <TableHead>Interest Due</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
+              <TableRow className="hover:bg-transparent border-slate-100 italic">
+                <TableHead className="font-extrabold uppercase text-[10px] tracking-widest py-4 pl-8">Identity</TableHead>
+                <TableHead className="font-extrabold uppercase text-[10px] tracking-widest py-4">Financial Status</TableHead>
+                <TableHead className="font-extrabold uppercase text-[10px] tracking-widest py-4">Total Assets</TableHead>
+                <TableHead className="font-extrabold uppercase text-[10px] tracking-widest py-4">Loan Position</TableHead>
+                <TableHead className="font-extrabold uppercase text-[10px] tracking-widest py-4">Governance</TableHead>
+                <TableHead className="font-extrabold uppercase text-[10px] tracking-widest py-4 pr-8 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -186,52 +190,71 @@ export default function MembersPage() {
                 const totalWithOrganization = member.sharesBalance + member.savingsBalance;
                 const loanInfo = getLoanSummary(member);
                 return (
-                  <TableRow key={member.id}>
-                    <TableCell className="font-medium">{member.memberNumber}</TableCell>
-                    <TableCell>{member.firstName} {member.lastName}</TableCell>
-                    <TableCell>{member.email}</TableCell>
-                    <TableCell>{formatCurrency(member.sharesBalance)}</TableCell>
-                    <TableCell>{formatCurrency(member.savingsBalance)}</TableCell>
-                    <TableCell className="font-medium">{formatCurrency(totalWithOrganization)}</TableCell>
-                    <TableCell>{formatCurrency(member.loanBalance)}</TableCell>
-                    <TableCell>
+                  <TableRow key={member.id} className="group border-slate-50 hover:bg-slate-50/40 transition-colors">
+                    <TableCell className="py-6 pl-8">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-100 to-teal-100 flex items-center justify-center font-black text-emerald-700 text-xs shadow-inner">
+                          {member.firstName[0]}{member.lastName[0]}
+                        </div>
+                        <div>
+                          <p className="font-extrabold text-slate-900 leading-tight">{member.firstName} {member.lastName}</p>
+                          <p className="text-[10px] font-bold text-slate-400 mt-0.5">{member.memberNumber}</p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-6">
+                      <div className="space-y-1">
+                        <div className="flex justify-between items-center w-32">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Shares</span>
+                          <span className="text-[10px] font-black text-slate-700 tabular-nums">{formatCurrency(member.sharesBalance)}</span>
+                        </div>
+                        <div className="flex justify-between items-center w-32">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Savings</span>
+                          <span className="text-[10px] font-black text-slate-700 tabular-nums">{formatCurrency(member.savingsBalance)}</span>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-6">
+                      <span className="text-sm font-black text-emerald-600 tabular-nums">{formatCurrency(totalWithOrganization)}</span>
+                    </TableCell>
+                    <TableCell className="py-6">
                       {loanInfo ? (
-                        <span className={loanInfo.isOverdue ? 'text-red-600 font-medium' : ''}>
-                          {loanInfo.monthsRemaining} months left
-                        </span>
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-1.5 h-1.5 rounded-full ${loanInfo.isOverdue ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'}`}></div>
+                            <span className="text-[10px] font-extrabold text-slate-900 tabular-nums">{formatCurrency(member.loanBalance)}</span>
+                          </div>
+                          <p className={`text-[9px] font-bold uppercase tracking-wider ${loanInfo.isOverdue ? 'text-rose-600' : 'text-slate-400'}`}>
+                            {loanInfo.monthsRemaining} MONTHS REMAINING
+                          </p>
+                        </div>
                       ) : (
-                        <span className="text-gray-500">No loan</span>
+                        <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">No Active Loan</span>
                       )}
                     </TableCell>
-                    <TableCell>
-                      {loanInfo ? (
-                        <span className={loanInfo.interestDue > 0 ? 'text-orange-600 font-medium' : 'text-green-600'}>
-                          {formatCurrency(loanInfo.interestDue)}
-                        </span>
-                      ) : (
-                        <span className="text-gray-500">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={member.status === 'active' ? 'default' : 'secondary'}>
+                    <TableCell className="py-6">
+                      <Badge className={`rounded-lg uppercase text-[9px] font-extrabold tracking-widest px-2 py-1 ${member.status === 'active' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-700'
+                        }`}>
                         {member.status}
                       </Badge>
                     </TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
+                    <TableCell className="py-6 pr-8 text-right">
+                      <div className="flex items-center justify-end gap-2">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handleViewMember(member)}
+                          className="h-10 px-4 rounded-xl font-bold border-2 hover:bg-slate-50 transition-all"
                         >
-                          View
+                          Focus
                         </Button>
                         <Button
-                          variant="outline"
+                          variant="ghost"
                           size="sm"
                           asChild
+                          className="h-10 px-4 rounded-xl font-bold text-emerald-700 hover:bg-emerald-50 transition-all"
                         >
-                          <a href="/admin/financial-updates">Update Finances</a>
+                          <Link href="/admin/financial-updates">Modify</Link>
                         </Button>
                       </div>
                     </TableCell>
@@ -240,8 +263,8 @@ export default function MembersPage() {
               })}
             </TableBody>
           </Table>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Add Member Modal */}
       <Dialog open={isAddingMember} onOpenChange={setIsAddingMember}>
@@ -259,7 +282,7 @@ export default function MembersPage() {
                 <Input
                   id="firstName"
                   value={newMemberForm.firstName}
-                  onChange={(e) => setNewMemberForm(prev => ({...prev, firstName: e.target.value}))}
+                  onChange={(e) => setNewMemberForm(prev => ({ ...prev, firstName: e.target.value }))}
                   required
                 />
               </div>
@@ -268,7 +291,7 @@ export default function MembersPage() {
                 <Input
                   id="lastName"
                   value={newMemberForm.lastName}
-                  onChange={(e) => setNewMemberForm(prev => ({...prev, lastName: e.target.value}))}
+                  onChange={(e) => setNewMemberForm(prev => ({ ...prev, lastName: e.target.value }))}
                   required
                 />
               </div>
@@ -281,7 +304,7 @@ export default function MembersPage() {
                   id="email"
                   type="email"
                   value={newMemberForm.email}
-                  onChange={(e) => setNewMemberForm(prev => ({...prev, email: e.target.value}))}
+                  onChange={(e) => setNewMemberForm(prev => ({ ...prev, email: e.target.value }))}
                   required
                 />
               </div>
@@ -290,7 +313,7 @@ export default function MembersPage() {
                 <Input
                   id="memberNumber"
                   value={newMemberForm.memberNumber}
-                  onChange={(e) => setNewMemberForm(prev => ({...prev, memberNumber: e.target.value}))}
+                  onChange={(e) => setNewMemberForm(prev => ({ ...prev, memberNumber: e.target.value }))}
                   required
                 />
               </div>
@@ -301,7 +324,7 @@ export default function MembersPage() {
               <Input
                 id="phone"
                 value={newMemberForm.phone}
-                onChange={(e) => setNewMemberForm(prev => ({...prev, phone: e.target.value}))}
+                onChange={(e) => setNewMemberForm(prev => ({ ...prev, phone: e.target.value }))}
                 required
               />
             </div>
@@ -311,7 +334,7 @@ export default function MembersPage() {
               <Input
                 id="address"
                 value={newMemberForm.address}
-                onChange={(e) => setNewMemberForm(prev => ({...prev, address: e.target.value}))}
+                onChange={(e) => setNewMemberForm(prev => ({ ...prev, address: e.target.value }))}
                 required
               />
             </div>
@@ -323,7 +346,7 @@ export default function MembersPage() {
                   id="sharesBalance"
                   type="number"
                   value={newMemberForm.sharesBalance}
-                  onChange={(e) => setNewMemberForm(prev => ({...prev, sharesBalance: e.target.value}))}
+                  onChange={(e) => setNewMemberForm(prev => ({ ...prev, sharesBalance: e.target.value }))}
                 />
               </div>
               <div className="space-y-2">
@@ -332,7 +355,7 @@ export default function MembersPage() {
                   id="savingsBalance"
                   type="number"
                   value={newMemberForm.savingsBalance}
-                  onChange={(e) => setNewMemberForm(prev => ({...prev, savingsBalance: e.target.value}))}
+                  onChange={(e) => setNewMemberForm(prev => ({ ...prev, savingsBalance: e.target.value }))}
                 />
               </div>
             </div>
@@ -484,11 +507,10 @@ export default function MembersPage() {
                                 {transaction.type.replace('_', ' ').toUpperCase()}
                               </Badge>
                             </TableCell>
-                            <TableCell className={`text-sm font-medium ${
-                              transaction.type.includes('deposit') || transaction.type.includes('disbursement')
-                                ? 'text-green-600'
-                                : 'text-red-600'
-                            }`}>
+                            <TableCell className={`text-sm font-medium ${transaction.type.includes('deposit') || transaction.type.includes('disbursement')
+                              ? 'text-green-600'
+                              : 'text-red-600'
+                              }`}>
                               {transaction.type.includes('deposit') || transaction.type.includes('disbursement') ? '+' : '-'}
                               {formatCurrency(transaction.amount)}
                             </TableCell>
