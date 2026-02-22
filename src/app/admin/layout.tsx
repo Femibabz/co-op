@@ -17,7 +17,6 @@ const navItems = [
   { href: '/admin/loans', label: 'Loans', icon: Coins },
   { href: '/admin/process-payment', label: 'Payments', icon: CreditCard },
   { href: '/admin/financial-updates', label: 'Financial', icon: TrendingUp },
-  { href: '/admin/calculate-interest', label: 'Interest', icon: Calculator },
   { href: '/admin/bylaws', label: 'By-Laws', icon: BookOpen },
   { href: '/admin/access-logs', label: 'Access Logs', icon: Activity },
   { href: '/admin/settings', label: 'Settings', icon: Settings },

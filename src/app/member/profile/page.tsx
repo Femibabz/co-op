@@ -26,7 +26,11 @@ import {
   CreditCard,
   Building2,
   Fingerprint,
-  AlertTriangle
+  AlertTriangle,
+  Lock,
+  Eye,
+  EyeOff,
+  KeyRound
 } from 'lucide-react';
 import { db } from '@/lib/mock-data';
 import { Member, MembershipApplication } from '@/types';
@@ -40,6 +44,13 @@ export default function ProfilePage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isLoaded, setIsLoaded] = useState(false);
+
+  // Password change state
+  const [pwForm, setPwForm] = useState({ current: '', newPw: '', confirm: '' });
+  const [showPw, setShowPw] = useState({ current: false, newPw: false, confirm: false });
+  const [pwError, setPwError] = useState('');
+  const [pwSuccess, setPwSuccess] = useState('');
+  const [isChangingPw, setIsChangingPw] = useState(false);
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -391,6 +402,107 @@ export default function ProfilePage() {
                     )}
                   </div>
                 </div>
+              </div>
+
+              <div className="flex items-center gap-2 border-b border-slate-100 pb-4 mt-4">
+                <KeyRound className="w-5 h-5 text-primary" />
+                <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">Security</h3>
+              </div>
+
+              <div className="space-y-4 max-w-lg">
+                {/* Current Password */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Current Password</Label>
+                  <div className="relative">
+                    <Input
+                      type={showPw.current ? 'text' : 'password'}
+                      value={pwForm.current}
+                      onChange={e => setPwForm(p => ({ ...p, current: e.target.value }))}
+                      placeholder="Enter current password"
+                      className="h-11 bg-slate-50/50 border-slate-200 focus:bg-white rounded-xl pr-10"
+                    />
+                    <button type="button" onClick={() => setShowPw(p => ({ ...p, current: !p.current }))} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                      {showPw.current ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* New Password */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">New Password</Label>
+                  <div className="relative">
+                    <Input
+                      type={showPw.newPw ? 'text' : 'password'}
+                      value={pwForm.newPw}
+                      onChange={e => setPwForm(p => ({ ...p, newPw: e.target.value }))}
+                      placeholder="Enter new password"
+                      className="h-11 bg-slate-50/50 border-slate-200 focus:bg-white rounded-xl pr-10"
+                    />
+                    <button type="button" onClick={() => setShowPw(p => ({ ...p, newPw: !p.newPw }))} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                      {showPw.newPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  {/* Requirements */}
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs pt-1">
+                    <span className={pwForm.newPw.length >= 8 ? 'text-emerald-600 font-bold' : 'text-slate-400'}>✓ 8+ chars</span>
+                    <span className={/[A-Z]/.test(pwForm.newPw) ? 'text-emerald-600 font-bold' : 'text-slate-400'}>✓ Uppercase</span>
+                    <span className={/[0-9]/.test(pwForm.newPw) ? 'text-emerald-600 font-bold' : 'text-slate-400'}>✓ Number</span>
+                    <span className={/[^A-Za-z0-9]/.test(pwForm.newPw) ? 'text-emerald-600 font-bold' : 'text-slate-400'}>✓ Special char</span>
+                  </div>
+                </div>
+
+                {/* Confirm Password */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Confirm New Password</Label>
+                  <div className="relative">
+                    <Input
+                      type={showPw.confirm ? 'text' : 'password'}
+                      value={pwForm.confirm}
+                      onChange={e => setPwForm(p => ({ ...p, confirm: e.target.value }))}
+                      placeholder="Repeat new password"
+                      className="h-11 bg-slate-50/50 border-slate-200 focus:bg-white rounded-xl pr-10"
+                    />
+                    <button type="button" onClick={() => setShowPw(p => ({ ...p, confirm: !p.confirm }))} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                      {showPw.confirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  {pwForm.confirm && pwForm.newPw !== pwForm.confirm && (
+                    <p className="text-xs text-rose-600 font-bold">Passwords do not match</p>
+                  )}
+                </div>
+
+                {pwError && <p className="text-sm text-rose-600 font-bold">{pwError}</p>}
+                {pwSuccess && <p className="text-sm text-emerald-600 font-bold">{pwSuccess}</p>}
+
+                <Button
+                  type="button"
+                  className="btn-premium h-11 px-6 rounded-xl"
+                  disabled={isChangingPw || !pwForm.current || !pwForm.newPw || !pwForm.confirm || pwForm.newPw !== pwForm.confirm}
+                  onClick={async () => {
+                    setPwError('');
+                    setPwSuccess('');
+                    if (!user) return;
+                    if (pwForm.current !== user.password) { setPwError('Current password is incorrect'); return; }
+                    if (pwForm.newPw.length < 8) { setPwError('Password must be at least 8 characters'); return; }
+                    if (!/[A-Z]/.test(pwForm.newPw)) { setPwError('Password needs at least one uppercase letter'); return; }
+                    if (!/[0-9]/.test(pwForm.newPw)) { setPwError('Password needs at least one number'); return; }
+                    if (pwForm.newPw === pwForm.current) { setPwError('New password must differ from current password'); return; }
+                    setIsChangingPw(true);
+                    try {
+                      const ok = await db.updateUserPassword(user.id, pwForm.newPw);
+                      if (ok) {
+                        setPwSuccess('Password updated! Please log out and sign in again with your new password.');
+                        setPwForm({ current: '', newPw: '', confirm: '' });
+                      } else {
+                        setPwError('Failed to update password. Please try again.');
+                      }
+                    } catch { setPwError('An error occurred. Please try again.'); }
+                    finally { setIsChangingPw(false); }
+                  }}
+                >
+                  <Lock className="w-4 h-4 mr-2" />
+                  {isChangingPw ? 'Updating...' : 'Update Password'}
+                </Button>
               </div>
 
               <div className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-100">

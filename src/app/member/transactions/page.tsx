@@ -163,14 +163,14 @@ export default function TransactionsPage() {
       <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <div className="premium-card p-6 space-y-3">
           <div className="flex items-center justify-between">
-            <div className="p-2 bg-slate-100 rounded-lg">
-              <Filter className="w-4 h-4 text-slate-600" />
+            <div className="p-2 bg-orange-50 rounded-lg">
+              <ArrowUpRight className="w-4 h-4 text-orange-600" />
             </div>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Count</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Loan Balance</p>
           </div>
           <div>
-            <p className="text-2xl font-extrabold text-slate-900">{filteredTransactions.length}</p>
-            <p className="text-xs text-slate-500 font-medium">Filtered results</p>
+            <p className="text-2xl font-extrabold text-orange-600">{formatCurrency(member?.loanBalance || 0)}</p>
+            <p className="text-xs text-slate-500 font-medium">Outstanding principal</p>
           </div>
         </div>
 
@@ -179,24 +179,30 @@ export default function TransactionsPage() {
             <div className="p-2 bg-emerald-50 rounded-lg">
               <ArrowDownLeft className="w-4 h-4 text-emerald-600" />
             </div>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Credits</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Shares & Savings</p>
           </div>
           <div>
-            <p className="text-2xl font-extrabold text-emerald-600">{formatCurrency(totalCredits)}</p>
-            <p className="text-xs text-slate-500 font-medium font-bold">Total Inflow</p>
+            <p className="text-2xl font-extrabold text-emerald-600">{formatCurrency((member?.sharesBalance || 0) + (member?.savingsBalance || 0))}</p>
+            <p className="text-xs text-slate-500 font-medium font-bold">Total with organisation</p>
           </div>
         </div>
 
         <div className="premium-card p-6 space-y-3">
           <div className="flex items-center justify-between">
             <div className="p-2 bg-rose-50 rounded-lg">
-              <ArrowUpRight className="w-4 h-4 text-rose-600" />
+              <Filter className="w-4 h-4 text-rose-600" />
             </div>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Debits</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Loan & Interest Paid</p>
           </div>
           <div>
-            <p className="text-2xl font-extrabold text-rose-600">{formatCurrency(totalDebits)}</p>
-            <p className="text-xs text-slate-500 font-medium font-bold">Total Outflow</p>
+            <p className="text-2xl font-extrabold text-rose-600">
+              {formatCurrency(
+                filteredTransactions
+                  .filter(t => t.type === 'loan_payment' || t.type === 'interest_payment')
+                  .reduce((sum, t) => sum + t.amount, 0)
+              )}
+            </p>
+            <p className="text-xs text-slate-500 font-medium font-bold">Total repaid in period</p>
           </div>
         </div>
 

@@ -218,9 +218,13 @@ export default function ApplyLoanPage() {
                   <Input
                     id="amount"
                     name="amount"
-                    type="number"
-                    value={formData.amount}
-                    onChange={handleInputChange}
+                    type="text"
+                    inputMode="numeric"
+                    value={formData.amount ? new Intl.NumberFormat('en-NG').format(parseFloat(formData.amount.replace(/,/g, '')) || 0) : ''}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/,/g, '');
+                      if (/^\d*\.?\d*$/.test(raw)) setFormData(prev => ({ ...prev, amount: raw }));
+                    }}
                     placeholder="0.00"
                     max={maxLoanAmount}
                     disabled={!isEligibleForLoan}
@@ -246,8 +250,6 @@ export default function ApplyLoanPage() {
                     <SelectItem value="3">3 Months (Short term)</SelectItem>
                     <SelectItem value="6">6 Months (Recommended)</SelectItem>
                     <SelectItem value="12">12 Months (Standard)</SelectItem>
-                    <SelectItem value="18">18 Months (Long term)</SelectItem>
-                    <SelectItem value="24">24 Months (Maximum)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

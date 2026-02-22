@@ -24,6 +24,7 @@ export default function MembersPage() {
   const [isAddingMember, setIsAddingMember] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [nextMemberNumber, setNextMemberNumber] = useState('');
 
   const [newMemberForm, setNewMemberForm] = useState({
     firstName: '',
@@ -42,6 +43,23 @@ export default function MembersPage() {
   useEffect(() => {
     loadMembers();
   }, []);
+
+  // Auto-generate sequential member number when add dialog opens
+  useEffect(() => {
+    if (!isAddingMember) return;
+    const generateNextNumber = async () => {
+      const allMembers = await db.getMembers();
+      // Extract numeric suffixes from existing member numbers (e.g. "OSU001" → 1)
+      const nums = allMembers
+        .map(m => parseInt(m.memberNumber.replace(/\D/g, ''), 10))
+        .filter(n => !isNaN(n));
+      const next = nums.length > 0 ? Math.max(...nums) + 1 : 1;
+      const generated = `OSU${String(next).padStart(3, '0')}`;
+      setNextMemberNumber(generated);
+      setNewMemberForm(prev => ({ ...prev, memberNumber: generated }));
+    };
+    generateNextNumber();
+  }, [isAddingMember]);
 
   const loadMembers = async () => {
     const allMembers = await db.getMembers();
@@ -84,6 +102,8 @@ export default function MembersPage() {
         email: newMemberForm.email,
         password: newMemberForm.password,
         role: 'member',
+        isFirstLogin: true,
+        societyId: 'soc1',
       });
 
       // Create member record
@@ -105,6 +125,7 @@ export default function MembersPage() {
       });
 
       setSuccess('Member added successfully');
+      setNextMemberNumber('');
       setNewMemberForm({
         firstName: '',
         lastName: '',
@@ -309,13 +330,11 @@ export default function MembersPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="memberNumber">Member Number</Label>
-                <Input
-                  id="memberNumber"
-                  value={newMemberForm.memberNumber}
-                  onChange={(e) => setNewMemberForm(prev => ({ ...prev, memberNumber: e.target.value }))}
-                  required
-                />
+                <Label>Member Number</Label>
+                <div className="flex items-center h-10 px-3 rounded-md border bg-slate-50 text-slate-700 font-bold tracking-wider">
+                  {nextMemberNumber || <span className="text-slate-400 text-xs">Generating...</span>}
+                </div>
+                <p className="text-xs text-slate-500">Auto-assigned in sequential order</p>
               </div>
             </div>
 
@@ -344,18 +363,28 @@ export default function MembersPage() {
                 <Label htmlFor="sharesBalance">Initial Shares (NGN)</Label>
                 <Input
                   id="sharesBalance"
-                  type="number"
-                  value={newMemberForm.sharesBalance}
-                  onChange={(e) => setNewMemberForm(prev => ({ ...prev, sharesBalance: e.target.value }))}
+                  type="text"
+                  inputMode="numeric"
+                  value={newMemberForm.sharesBalance === '0' ? '' : new Intl.NumberFormat('en-NG').format(parseFloat(newMemberForm.sharesBalance.replace(/,/g, '')) || 0)}
+                  placeholder="0"
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/,/g, '');
+                    if (/^\d*\.?\d*$/.test(raw)) setNewMemberForm(prev => ({ ...prev, sharesBalance: raw || '0' }));
+                  }}
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="savingsBalance">Initial Savings (NGN)</Label>
                 <Input
                   id="savingsBalance"
-                  type="number"
-                  value={newMemberForm.savingsBalance}
-                  onChange={(e) => setNewMemberForm(prev => ({ ...prev, savingsBalance: e.target.value }))}
+                  type="text"
+                  inputMode="numeric"
+                  value={newMemberForm.savingsBalance === '0' ? '' : new Intl.NumberFormat('en-NG').format(parseFloat(newMemberForm.savingsBalance.replace(/,/g, '')) || 0)}
+                  placeholder="0"
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/,/g, '');
+                    if (/^\d*\.?\d*$/.test(raw)) setNewMemberForm(prev => ({ ...prev, savingsBalance: raw || '0' }));
+                  }}
                 />
               </div>
             </div>

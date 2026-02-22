@@ -2,6 +2,15 @@ import { User, Member, MembershipApplication, LoanApplication, Transaction, ByLa
 import { supabase, isSupabaseConfigured } from './supabase';
 import { calculateAccumulatedInterest } from './loan-utils';
 
+/**
+ * Session-level cache: tracks which member IDs have already had their
+ * monthly interest auto-calculated in this browser session.
+ * Prevents double-charging when getMembers() is called multiple times
+ * (e.g. from the process-payment dropdown re-selecting a member).
+ * Cleared on full page reload (module re-initialisation).
+ */
+const interestSessionCache = new Set<string>();
+
 // Mock societies
 export const mockSocieties: Society[] = [
   {
@@ -794,6 +803,9 @@ export class MockDatabase {
             loanDurationMonths: m.loan_duration_months,
             loanInterestRate: m.loan_interest_rate,
             monthlyLoanPayment: m.monthly_loan_payment,
+            lastInterestCalculationDate: m.last_interest_calculation_date
+              ? new Date(m.last_interest_calculation_date)
+              : undefined,
             annualIncome: m.annual_income,
             loanEligibilityOverride: m.loan_eligibility_override
           }));
@@ -1954,32 +1966,42 @@ export class MockDatabase {
     return false;
   }
 
-  // Auto-calculate pending interest for a single member
+  // Auto-calculate pending interest for a single member (once per session)
   private async autoCalculateInterestForMember(member: Member): Promise<Member> {
     // Only calculate if member has an active loan
     if (!member.loanBalance || member.loanBalance <= 0) {
       return member;
     }
 
+    // Session guard: don't charge the same member twice in one browser session.
+    // The member.id key is used so each reload of the page gives a fresh session.
+    if (interestSessionCache.has(member.id)) {
+      return member;
+    }
+
     // Calculate pending interest
     const calculation = calculateAccumulatedInterest(member);
 
+    // Mark as processed for this session whether or not interest was owed.
+    // This prevents repeated 0-month checks too.
+    interestSessionCache.add(member.id);
+
     // If there's pending interest to charge, update the member
     if (calculation.monthsToCalculate > 0 && calculation.totalInterest > 0) {
-      console.log(`Auto-calculating ${calculation.monthsToCalculate} month(s) of interest for ${member.firstName} ${member.lastName}: ${calculation.totalInterest}`);
+      console.log(`[Interest] Auto-charging ${calculation.monthsToCalculate} month(s) for ${member.firstName} ${member.lastName}: ₦${calculation.totalInterest.toLocaleString()}`);
 
-      // Update member with new interest
+      // Update member with new interest balance and mark the calculation date
       const updated = await this.updateMember(member.id, {
         interestBalance: calculation.newInterestBalance,
         lastInterestCalculationDate: new Date(),
       });
 
-      // Create transaction for the interest charge
+      // Record an interest_charge transaction
       await this.createTransaction({
         memberId: member.id,
         type: 'interest_charge',
         amount: calculation.totalInterest,
-        description: `Auto-calculated interest - ${calculation.monthsToCalculate} month(s)`,
+        description: `Monthly interest — ${calculation.monthsToCalculate} month(s) @ ${calculation.breakdown[0]?.rate ?? '?'}%`,
         date: new Date(),
         balanceAfter: calculation.newInterestBalance,
         referenceNumber: `AUTO-INT-${Date.now()}-${member.id}`,

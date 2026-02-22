@@ -187,10 +187,14 @@ export default function ProcessPaymentPage() {
                   <Label htmlFor="payment-amount">Payment Amount (₦)</Label>
                   <Input
                     id="payment-amount"
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
                     placeholder="0"
-                    value={paymentAmount}
-                    onChange={(e) => setPaymentAmount(e.target.value)}
+                    value={paymentAmount ? new Intl.NumberFormat('en-NG').format(parseFloat(paymentAmount.replace(/,/g, '')) || 0) : ''}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/,/g, '');
+                      if (/^\d*\.?\d*$/.test(raw)) setPaymentAmount(raw);
+                    }}
                   />
                 </div>
 
