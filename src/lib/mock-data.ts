@@ -608,7 +608,7 @@ export class MockDatabase {
           if (error.code === 'PGRST116') {
             return undefined;
           }
-          console.error('Supabase fetch error:', error);
+          console.warn('Supabase fetch error:', error);
           throw error;
         }
 
@@ -628,7 +628,7 @@ export class MockDatabase {
           return user;
         }
       } catch (error) {
-        console.error('Error finding user by email in Supabase:', error);
+        console.warn('Error finding user by email in Supabase:', error);
         // Fall through to localStorage fallback
       }
     }
@@ -655,7 +655,7 @@ export class MockDatabase {
           .single();
 
         if (error) {
-          console.error('Supabase insert error:', error);
+          console.warn('Supabase insert error:', error);
           throw error;
         }
 
@@ -677,7 +677,7 @@ export class MockDatabase {
 
         return newUser;
       } catch (error) {
-        console.error('Error creating user in Supabase:', error);
+        console.warn('Error creating user in Supabase:', error);
         // Fall through to localStorage fallback
       }
     }
@@ -718,7 +718,7 @@ export class MockDatabase {
           .single();
 
         if (error) {
-          console.error('Supabase update error:', error);
+          console.warn('Supabase update error:', error);
           throw error;
         }
 
@@ -737,7 +737,7 @@ export class MockDatabase {
           return true;
         }
       } catch (error) {
-        console.error('Error updating password in Supabase:', error);
+        console.warn('Error updating password in Supabase:', error);
         // Fall through to localStorage fallback
       }
     }
@@ -767,7 +767,7 @@ export class MockDatabase {
           .order('date_joined', { ascending: false });
 
         if (error) {
-          console.error('Supabase fetch error:', error);
+          console.warn('Supabase fetch error:', error);
           throw error;
         }
 
@@ -803,7 +803,7 @@ export class MockDatabase {
           return updatedMembers;
         }
       } catch (error) {
-        console.error('Error fetching members from Supabase:', error);
+        console.warn('Supabase member fetch failed, using localStorage fallback.');
         // Fall through to localStorage fallback
       }
     }
@@ -828,7 +828,7 @@ export class MockDatabase {
           if (error.code === 'PGRST116') {
             return undefined;
           }
-          console.error('Supabase fetch error:', error);
+          console.warn('Supabase fetch error:', error);
           throw error;
         }
 
@@ -863,7 +863,7 @@ export class MockDatabase {
           return updatedMember;
         }
       } catch (error) {
-        console.error('Error fetching member by user ID from Supabase:', error);
+        console.warn('Error fetching member by user ID from Supabase:', error);
         // Fall through to localStorage fallback
       }
     }
@@ -890,7 +890,7 @@ export class MockDatabase {
           if (error.code === 'PGRST116') {
             return undefined;
           }
-          console.error('Supabase fetch error:', error);
+          console.warn('Supabase fetch error:', error);
           throw error;
         }
 
@@ -925,7 +925,7 @@ export class MockDatabase {
           return updatedMember;
         }
       } catch (error) {
-        console.error('Error fetching member by ID from Supabase:', error);
+        console.warn('Error fetching member by ID from Supabase:', error);
         // Fall through to localStorage fallback
       }
     }
@@ -973,7 +973,7 @@ export class MockDatabase {
           .single();
 
         if (error) {
-          console.error('Supabase update error:', error);
+          console.warn('Supabase update skipped, falling back to localStorage:', error?.message || error);
           throw error;
         }
 
@@ -1013,7 +1013,7 @@ export class MockDatabase {
           return updatedMember;
         }
       } catch (error) {
-        console.error('Error updating member in Supabase:', error);
+        console.warn('Supabase member update failed, using localStorage fallback.');
         // Fall through to localStorage
       }
     }
@@ -1060,7 +1060,7 @@ export class MockDatabase {
           .single();
 
         if (error) {
-          console.error('Supabase insert error:', error);
+          console.warn('Supabase insert error:', error);
           throw error;
         }
 
@@ -1096,7 +1096,7 @@ export class MockDatabase {
 
         return newMember;
       } catch (error) {
-        console.error('Error creating member in Supabase:', error);
+        console.warn('Error creating member in Supabase:', error);
         // Fall through to localStorage fallback
       }
     }
@@ -1123,7 +1123,7 @@ export class MockDatabase {
           .order('applied_at', { ascending: false });
 
         if (error) {
-          console.error('Supabase fetch error:', error);
+          console.warn('Supabase fetch error:', error);
           throw error;
         }
 
@@ -1153,7 +1153,7 @@ export class MockDatabase {
           return applications;
         }
       } catch (error) {
-        console.error('Error fetching applications from Supabase:', error);
+        console.warn('Error fetching applications from Supabase:', error);
         // Fall through to localStorage fallback
       }
     }
@@ -1180,7 +1180,7 @@ export class MockDatabase {
           .single();
 
         if (error) {
-          console.error('Supabase update error:', error);
+          console.warn('Supabase update error:', error);
           throw error;
         }
 
@@ -1216,7 +1216,7 @@ export class MockDatabase {
           return updatedApplication;
         }
       } catch (error) {
-        console.error('Error updating application in Supabase:', error);
+        console.warn('Error updating application in Supabase:', error);
         // Fall through to localStorage
       }
     }
@@ -1256,7 +1256,7 @@ export class MockDatabase {
           .single();
 
         if (error) {
-          console.error('Supabase insert error:', error);
+          console.warn('Supabase insert error:', error);
           throw error;
         }
 
@@ -1288,7 +1288,7 @@ export class MockDatabase {
 
         return newApplication;
       } catch (error) {
-        console.error('Error creating application in Supabase:', error);
+        console.warn('Error creating application in Supabase:', error);
         // Fall through to localStorage fallback
       }
     }
@@ -1316,7 +1316,7 @@ export class MockDatabase {
           .order('applied_at', { ascending: false });
 
         if (error) {
-          console.error('Supabase fetch error:', error);
+          console.warn('Supabase fetch error:', error);
           throw error;
         }
 
@@ -1339,7 +1339,7 @@ export class MockDatabase {
           return loanApplications;
         }
       } catch (error) {
-        console.error('Error fetching loan applications from Supabase:', error);
+        console.warn('Error fetching loan applications from Supabase:', error);
         // Fall through to localStorage fallback
       }
     }
@@ -1359,7 +1359,7 @@ export class MockDatabase {
           .order('applied_at', { ascending: false });
 
         if (error) {
-          console.error('Supabase fetch error:', error);
+          console.warn('Supabase fetch error:', error);
           throw error;
         }
 
@@ -1382,7 +1382,7 @@ export class MockDatabase {
           return loanApplications;
         }
       } catch (error) {
-        console.error('Error fetching member loan applications from Supabase:', error);
+        console.warn('Error fetching member loan applications from Supabase:', error);
         // Fall through to localStorage fallback
       }
     }
@@ -1410,7 +1410,7 @@ export class MockDatabase {
           .single();
 
         if (error) {
-          console.error('Supabase update error:', error);
+          console.warn('Supabase update error:', error);
           throw error;
         }
 
@@ -1439,7 +1439,7 @@ export class MockDatabase {
           return updatedLoanApplication;
         }
       } catch (error) {
-        console.error('Error updating loan application in Supabase:', error);
+        console.warn('Error updating loan application in Supabase:', error);
         // Fall through to localStorage
       }
     }
@@ -1471,7 +1471,7 @@ export class MockDatabase {
           .single();
 
         if (error) {
-          console.error('Supabase insert error:', error);
+          console.warn('Supabase insert error:', error);
           throw error;
         }
 
@@ -1496,7 +1496,7 @@ export class MockDatabase {
 
         return newLoanApplication;
       } catch (error) {
-        console.error('Error creating loan application in Supabase:', error);
+        console.warn('Error creating loan application in Supabase:', error);
         // Fall through to localStorage fallback
       }
     }
@@ -1524,7 +1524,7 @@ export class MockDatabase {
           .order('date', { ascending: false });
 
         if (error) {
-          console.error('Supabase fetch error:', error);
+          console.warn('Supabase fetch error:', error);
           throw error;
         }
 
@@ -1545,7 +1545,7 @@ export class MockDatabase {
           return transactions;
         }
       } catch (error) {
-        console.error('Error fetching transactions from Supabase:', error);
+        console.warn('Error fetching transactions from Supabase:', error);
         // Fall through to localStorage fallback
       }
     }
@@ -1569,7 +1569,7 @@ export class MockDatabase {
           .order('date', { ascending: false });
 
         if (error) {
-          console.error('Supabase fetch error:', error);
+          console.warn('Supabase fetch error:', error);
           throw error;
         }
 
@@ -1590,7 +1590,7 @@ export class MockDatabase {
           return transactions;
         }
       } catch (error) {
-        console.error('Error fetching member transactions from Supabase:', error);
+        console.warn('Error fetching member transactions from Supabase:', error);
         // Fall through to localStorage fallback
       }
     }
@@ -1624,7 +1624,7 @@ export class MockDatabase {
           .single();
 
         if (error) {
-          console.error('Supabase insert error:', error);
+          console.warn('Supabase insert error:', error);
           throw error;
         }
 
@@ -1647,7 +1647,7 @@ export class MockDatabase {
 
         return newTransaction;
       } catch (error) {
-        console.error('Error creating transaction in Supabase:', error);
+        console.warn('Error creating transaction in Supabase:', error);
         // Fall through to localStorage fallback
       }
     }
@@ -1678,7 +1678,7 @@ export class MockDatabase {
           .order('updated_at', { ascending: false });
 
         if (error) {
-          console.error('Supabase fetch error:', error);
+          console.warn('Supabase fetch error:', error);
           throw error;
         }
 
@@ -1705,7 +1705,7 @@ export class MockDatabase {
           console.warn('No bylaws found in Supabase. Visit /seed-bylaws to seed the database.');
         }
       } catch (error) {
-        console.error('Error fetching active bylaws from Supabase:', error);
+        console.warn('Error fetching active bylaws from Supabase:', error);
         // Fall through to localStorage fallback
       }
     }
@@ -1846,7 +1846,7 @@ export class MockDatabase {
           .single();
 
         if (error) {
-          console.error('Supabase insert error:', error);
+          console.warn('Supabase insert error:', error);
           throw error;
         }
 
@@ -1872,7 +1872,7 @@ export class MockDatabase {
 
         return newSession;
       } catch (error) {
-        console.error('Error creating login session in Supabase:', error);
+        console.warn('Error creating login session in Supabase:', error);
         // Fall through to localStorage fallback
       }
     }
