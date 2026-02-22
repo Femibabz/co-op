@@ -4,19 +4,32 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Menu, X } from 'lucide-react';
+import {
+  LayoutDashboard, Users, FileText, Coins, CreditCard,
+  TrendingUp, Calculator, BookOpen, Activity, LogOut,
+  Menu, X, ChevronRight, Bell, Settings, Shield
+} from 'lucide-react';
 
-export default function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+const navItems = [
+  { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, exact: true },
+  { href: '/admin/members', label: 'Members', icon: Users },
+  { href: '/admin/applications', label: 'Applications', icon: FileText },
+  { href: '/admin/loans', label: 'Loans', icon: Coins },
+  { href: '/admin/process-payment', label: 'Payments', icon: CreditCard },
+  { href: '/admin/financial-updates', label: 'Financial', icon: TrendingUp },
+  { href: '/admin/calculate-interest', label: 'Interest', icon: Calculator },
+  { href: '/admin/bylaws', label: 'By-Laws', icon: BookOpen },
+  { href: '/admin/access-logs', label: 'Access Logs', icon: Activity },
+];
+
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, logout, isLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     if (!isLoading && (!user || user.role !== 'admin')) {
@@ -24,123 +37,178 @@ export default function AdminLayout({
     }
   }, [user, isLoading, router]);
 
-  if (isLoading) {
+  const isActive = (item: typeof navItems[0]) => {
+    if (item.exact) return pathname === item.href;
+    return pathname.startsWith(item.href);
+  };
+
+  const handleLogout = () => { logout(); router.push('/'); };
+
+  if (isLoading || !mounted) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div>Loading...</div>
+      <div className="min-h-screen bg-gradient-to-br from-emerald-950 via-slate-900 to-slate-950 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative">
+            <div className="w-16 h-16 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
+              <Shield className="w-8 h-8 text-emerald-400 animate-pulse" />
+            </div>
+          </div>
+          <p className="text-emerald-300 font-semibold text-sm tracking-widest uppercase animate-pulse">
+            Loading Admin Portal...
+          </p>
+        </div>
       </div>
     );
   }
 
-  if (!user || user.role !== 'admin') {
-    return null;
-  }
+  if (!user || user.role !== 'admin') return null;
 
-  const handleLogout = () => {
-    logout();
-    router.push('/');
-  };
-
-  const navLinks = [
-    { href: '/admin', label: 'Dashboard' },
-    { href: '/admin/members', label: 'Members' },
-    { href: '/admin/applications', label: 'Applications' },
-    { href: '/admin/loans', label: 'Loans' },
-    { href: '/admin/process-payment', label: 'Payments' },
-    { href: '/admin/financial-updates', label: 'Financial' },
-    { href: '/admin/calculate-interest', label: 'Interest' },
-    { href: '/admin/bylaws', label: 'By-Laws' },
-    { href: '/admin/access-logs', label: 'Logs' },
-  ];
+  const activeItem = navItems.find(isActive);
 
   return (
-    <div className="min-h-screen bg-slate-50/50">
-      {/* Background decoration */}
-      <div className="fixed inset-0 -z-10 h-full w-full bg-white bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] opacity-40"></div>
+    <div className="min-h-screen bg-slate-100 flex">
+      {/* ── Sidebar ── */}
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
-      {/* Header - Mobile Responsive */}
-      <header className="sticky top-0 z-50 w-full border-b border-white/20 bg-emerald-600/80 backdrop-blur-md shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-3">
-              <div className="bg-white/20 p-2 rounded-xl backdrop-blur-sm border border-white/30 shadow-inner">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                </svg>
-              </div>
-              <div className="flex flex-col">
-                <h1 className="text-lg font-extrabold text-white tracking-tight leading-none">OsuOlale</h1>
-                <span className="text-[10px] font-bold text-emerald-100 uppercase tracking-widest mt-0.5">Admin Portal</span>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-3">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleLogout}
-                className="bg-white/10 text-white border-white/30 hover:bg-white/20 hover:text-white rounded-xl font-bold transition-all duration-300"
-              >
-                Sign Out
-              </Button>
-              {/* Mobile menu button */}
-              <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="lg:hidden p-2 rounded-xl text-white hover:bg-white/10 transition-colors border border-transparent hover:border-white/20"
-                aria-label="Toggle menu"
-              >
-                {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-              </button>
-            </div>
+      {/* Sidebar panel */}
+      <aside
+        className={`
+          fixed inset-y-0 left-0 z-50 w-72 flex flex-col
+          bg-gradient-to-b from-emerald-950 via-slate-900 to-slate-950
+          border-r border-white/5 shadow-2xl
+          transform transition-transform duration-300 ease-in-out
+          lg:relative lg:translate-x-0 lg:flex
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        `}
+      >
+        {/* Logo area */}
+        <div className="flex items-center gap-3 px-6 h-20 border-b border-white/5 shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+            <Shield className="w-5 h-5 text-white" />
           </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-white font-extrabold text-lg leading-none tracking-tight">OsuOlale</p>
+            <p className="text-emerald-400 text-[10px] font-bold uppercase tracking-widest mt-1">Admin Portal</p>
+          </div>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden text-slate-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/5"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
-        {/* Mobile Navigation Menu */}
-        {mobileMenuOpen && (
-          <div className="lg:hidden border-t border-white/10 bg-emerald-700/95 backdrop-blur-xl">
-            <div className="px-4 pt-4 pb-6 space-y-2">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center px-4 py-3 rounded-xl text-sm font-bold transition-all duration-300 ${pathname === link.href
-                      ? 'bg-white text-emerald-700 shadow-lg'
-                      : 'text-white/80 hover:bg-white/10 hover:text-white'
-                    }`}
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </div>
-          </div>
-        )}
-      </header>
+        {/* Nav section label */}
+        <div className="px-6 pt-6 pb-2">
+          <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Navigation</p>
+        </div>
 
-      {/* Desktop Navigation - Hidden on Mobile */}
-      <nav className="hidden lg:block bg-white/70 backdrop-blur-md border-b border-slate-200/60 sticky top-16 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex space-x-1 overflow-x-auto scrollbar-hide py-2">
-            {navLinks.map((link) => (
+        {/* Nav items */}
+        <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto pb-4">
+          {navItems.map((item) => {
+            const active = isActive(item);
+            return (
               <Link
-                key={link.href}
-                href={link.href}
-                className={`whitespace-nowrap rounded-xl py-2 px-4 text-xs font-bold transition-all duration-300 ${pathname === link.href
-                    ? 'bg-emerald-50 text-emerald-700 shadow-sm border border-emerald-100'
-                    : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
-                  }`}
+                key={item.href}
+                href={item.href}
+                onClick={() => setSidebarOpen(false)}
+                className={`
+                  flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold
+                  transition-all duration-200 group relative
+                  ${active
+                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                  }
+                `}
               >
-                {link.label}
+                <item.icon className={`w-4 h-4 shrink-0 transition-transform duration-200 ${active ? 'scale-110' : 'group-hover:scale-110'}`} />
+                <span className="flex-1">{item.label}</span>
+                {active && <ChevronRight className="w-3.5 h-3.5 text-emerald-200" />}
               </Link>
-            ))}
+            );
+          })}
+        </nav>
+
+        {/* User card at bottom */}
+        <div className="px-3 pb-4 shrink-0">
+          <div className="rounded-2xl bg-white/5 border border-white/5 p-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shrink-0">
+                <span className="text-emerald-400 font-bold text-sm">
+                  {user.email?.[0]?.toUpperCase()}
+                </span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-white text-sm font-bold truncate">{user.email?.split('@')[0]}</p>
+                <p className="text-slate-500 text-xs font-medium">Administrator</p>
+              </div>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 hover:text-rose-300 text-xs font-bold transition-all duration-200"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              Sign Out
+            </button>
           </div>
         </div>
-      </nav>
+      </aside>
 
-      {/* Main Content - Mobile Responsive */}
-      <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 animate-fadeIn">
-        {children}
-      </main>
+      {/* ── Main area ── */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Top header bar */}
+        <header className="sticky top-0 z-30 h-16 bg-white/80 backdrop-blur-md border-b border-slate-200/60 flex items-center gap-4 px-4 sm:px-6 shrink-0 shadow-sm">
+          {/* Hamburger */}
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="lg:hidden p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-slate-400 text-sm font-medium hidden sm:block">Admin</span>
+            {activeItem && (
+              <>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-300 shrink-0 hidden sm:block" />
+                <span className="text-slate-900 text-sm font-bold truncate">{activeItem.label}</span>
+              </>
+            )}
+          </div>
+
+          <div className="flex-1" />
+
+          {/* Right actions */}
+          <div className="flex items-center gap-2">
+            <button className="relative p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
+              <Bell className="w-5 h-5" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-500 rounded-full ring-2 ring-white" />
+            </button>
+            <div className="hidden sm:flex items-center gap-2 pl-3 border-l border-slate-200">
+              <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+                <span className="text-emerald-700 font-bold text-sm">
+                  {user.email?.[0]?.toUpperCase()}
+                </span>
+              </div>
+              <span className="text-slate-700 text-sm font-semibold max-w-[120px] truncate">
+                {user.email?.split('@')[0]}
+              </span>
+            </div>
+          </div>
+        </header>
+
+        {/* Page content */}
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto animate-fadeIn">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }
