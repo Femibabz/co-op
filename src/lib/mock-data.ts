@@ -798,9 +798,9 @@ export class MockDatabase {
             loanEligibilityOverride: m.loan_eligibility_override
           }));
 
-          // Auto-calculate pending interest for all members
-          const updatedMembers = await this.autoCalculateInterestForMembers(members);
-          return updatedMembers;
+          // Return members as-is — interest is applied only via the
+          // admin Calculate Interest action, not on every fetch.
+          return members;
         }
       } catch (error) {
         console.warn('Supabase member fetch failed, using localStorage fallback.');
@@ -808,10 +808,8 @@ export class MockDatabase {
       }
     }
 
-    // Fallback to localStorage
-    const members = [...this.members];
-    const updatedMembers = await this.autoCalculateInterestForMembers(members);
-    return updatedMembers;
+    // Return members as-is from localStorage
+    return [...this.members];
   }
 
   async getMemberByUserId(userId: string): Promise<Member | undefined> {

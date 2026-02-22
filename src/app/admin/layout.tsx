@@ -20,6 +20,7 @@ const navItems = [
   { href: '/admin/calculate-interest', label: 'Interest', icon: Calculator },
   { href: '/admin/bylaws', label: 'By-Laws', icon: BookOpen },
   { href: '/admin/access-logs', label: 'Access Logs', icon: Activity },
+  { href: '/admin/settings', label: 'Settings', icon: Settings },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

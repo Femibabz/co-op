@@ -171,12 +171,12 @@ export default function CalculateInterestPage() {
           <CardTitle className="text-yellow-900">How Interest Calculation Works</CardTitle>
         </CardHeader>
         <CardContent className="text-sm text-yellow-800 space-y-2">
-          <p>• <strong>Base Rate:</strong> 1.5% per month on outstanding loan balance</p>
-          <p>• <strong>After 12 Months:</strong> Rate doubles to 3% per month if loan is not fully repaid</p>
-          <p>• <strong>Interest Accumulation:</strong> Interest is calculated monthly and added to interest balance</p>
+          <p>• <strong>Base Rate:</strong> 1.0% per month on outstanding loan <strong>principal</strong> balance</p>
+          <p>• <strong>After 12 Months:</strong> Rate doubles to 2.0% per month if loan is not fully repaid</p>
+          <p>• <strong>Interest Accumulation:</strong> Interest is charged on the 1st of each month, starting from the 1st of the month after the loan was issued</p>
           <p>• <strong>Payment Priority:</strong> Payments are applied to interest first, then principal</p>
-          <p>• <strong>Reduced Balance:</strong> When principal is paid, next month's interest is calculated on the new reduced balance</p>
-          <p className="mt-4 font-semibold">⚠️ Run this process at the end of each month to charge interest</p>
+          <p>• <strong>Reduced Balance:</strong> When principal is paid down, next month's interest is calculated on the new lower balance</p>
+          <p className="mt-4 font-semibold">⚠️ Run this process at the beginning of each month to charge interest for the new month</p>
         </CardContent>
       </Card>
 
@@ -265,10 +265,10 @@ export default function CalculateInterestPage() {
                       {member.firstName} {member.lastName} ({member.memberNumber})
                     </p>
                     <div className="mt-2 space-y-1 text-sm text-orange-800">
-                      {calculation.breakdown?.map((month: any, index: number) => (
+                      {calculation.breakdown?.map((item: any, index: number) => (
                         <div key={index} className="flex justify-between">
-                          <span>Month {month.month}: {formatNaira(month.balance)} × {month.rate}%</span>
-                          <span className="font-medium">= {formatNaira(month.interest)}</span>
+                          <span>{item.month}: {formatNaira(item.balance)} × {item.rate}%</span>
+                          <span className="font-medium">= {formatNaira(item.interest)}</span>
                         </div>
                       ))}
                       <div className="flex justify-between font-semibold pt-2 border-t border-orange-300">

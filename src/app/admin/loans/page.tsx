@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { db } from '@/lib/mock-data';
+import { getSocietySettings } from '@/lib/society-settings';
 import { LoanApplication, Member } from '@/types';
 
 export default function LoansPage() {
@@ -84,39 +85,36 @@ export default function LoansPage() {
         disbursedAt: approvalDate, // Set disbursement date to approval date
       });
 
-      // Update member's loan details and balance
-      if (updatedLoan) {
-        // Set up loan with 1.5% monthly interest rate
-        const monthlyInterestRate = 1.5; // 1.5% monthly
-        const principal = selectedLoan.amount;
-        const monthlyPayment = principal / 12; // Simple division for principal
+      // Stamp the CURRENT society interest rate onto this loan record
+      // so it persists for the life of the loan even if the admin changes settings later.
+      const { loanInterestRate } = getSocietySettings();
+      const principal = selectedLoan.amount;
+      const monthlyPayment = principal / (selectedLoan.duration || 12);
 
-        await db.updateMember(selectedMember.id, {
-          loanBalance: selectedMember.loanBalance + selectedLoan.amount,
-          loanStartDate: approvalDate, // Set loan start date to approval date
-          loanDurationMonths: 12, // Standard 12-month duration
-          loanInterestRate: monthlyInterestRate, // 1.5% monthly (doubles to 3% after 12 months)
-          monthlyLoanPayment: monthlyPayment,
-          lastInterestCalculationDate: approvalDate, // Track when interest was last calculated
-          // Interest will be calculated monthly and added to interestBalance
-        });
+      await db.updateMember(selectedMember.id, {
+        loanBalance: selectedMember.loanBalance + selectedLoan.amount,
+        loanStartDate: approvalDate,
+        loanDurationMonths: selectedLoan.duration || 12,
+        loanInterestRate,               // rate from society settings at time of disbursement
+        monthlyLoanPayment: monthlyPayment,
+        lastInterestCalculationDate: approvalDate,
+      });
 
-        // Create loan disbursement transaction
-        await db.createTransaction({
-          memberId: selectedMember.id,
-          type: 'loan_disbursement',
-          amount: selectedLoan.amount,
-          description: `Loan approved and disbursed - ${selectedLoan.purpose}`,
-          date: approvalDate,
-          balanceAfter: selectedMember.loanBalance + selectedLoan.amount,
-          referenceNumber: `LN${Date.now()}`,
-          processedBy: 'admin',
-        });
+      // Create loan disbursement transaction
+      await db.createTransaction({
+        memberId: selectedMember.id,
+        type: 'loan_disbursement',
+        amount: selectedLoan.amount,
+        description: `Loan approved and disbursed - ${selectedLoan.purpose}`,
+        date: approvalDate,
+        balanceAfter: selectedMember.loanBalance + selectedLoan.amount,
+        referenceNumber: `LN${Date.now()}`,
+        processedBy: 'admin',
+      });
 
-        setSuccess('Loan approved and disbursed successfully');
-        setIsDialogOpen(false);
-        loadLoanApplications();
-      }
+      setSuccess('Loan approved and disbursed successfully');
+      setIsDialogOpen(false);
+      loadLoanApplications();
     } catch (err) {
       setError('Failed to approve loan');
     }
