@@ -94,6 +94,42 @@ export interface LoanApplication {
   reviewedBy?: string;
   reviewNotes?: string;
   disbursedAt?: Date;
+  guarantorIds?: string[];      // member IDs selected as guarantors
+  guarantorCount?: number;      // required count snapshot at application time
+}
+
+/** Tracks a guarantor's approval/decline for a loan or membership application */
+export interface GuarantorRequest {
+  id: string;
+  type: 'loan' | 'membership';
+  applicationId: string;        // LoanApplication.id or MembershipApplication.id
+  applicantName: string;        // display name for the guarantor prompt
+  guarantorMemberId: string;    // which member must respond
+  status: 'pending' | 'approved' | 'declined';
+  requestedAt: Date;
+  respondedAt?: Date;
+}
+
+/** Broadcast message sent by admin to all members */
+export interface BroadcastMessage {
+  id: string;
+  subject: string;
+  body: string;
+  sentAt: Date;
+  sentBy: string;
+  readBy: string[];  // memberIds who dismissed it
+}
+
+/** Levy or due imposed on one or more members */
+export interface Levy {
+  id: string;
+  description: string;
+  amount: number;
+  imposedAt: Date;
+  imposedBy: string;
+  memberIds: string[];   // member IDs affected ('ALL' means all members at time of creation)
+  targetAll: boolean;
+  status: 'active' | 'waived';
 }
 
 export interface Transaction {

@@ -1,4 +1,4 @@
-import { User, Member, MembershipApplication, LoanApplication, Transaction, ByLaw, LoginSession, Society } from '@/types';
+import { User, Member, MembershipApplication, LoanApplication, Transaction, ByLaw, LoginSession, Society, GuarantorRequest, BroadcastMessage, Levy } from '@/types';
 import { supabase, isSupabaseConfigured } from './supabase';
 import { calculateAccumulatedInterest } from './loan-utils';
 
@@ -2060,6 +2060,120 @@ export class MockDatabase {
       return this.societies[index];
     }
     return undefined;
+  }
+
+  // ─── Guarantor Requests ────────────────────────────────────────────────────
+
+  private guarantorRequests: GuarantorRequest[] = this.loadKeyFromStorage<GuarantorRequest[]>('guarantorRequests') || [];
+
+  createGuarantorRequest(data: Omit<GuarantorRequest, 'id' | 'requestedAt'>): GuarantorRequest {
+    const req: GuarantorRequest = {
+      ...data,
+      id: `gr${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      requestedAt: new Date(),
+    };
+    this.guarantorRequests.push(req);
+    this.saveCollectionToStorage('guarantorRequests', this.guarantorRequests);
+    return req;
+  }
+
+  getGuarantorRequestsForMember(memberId: string): GuarantorRequest[] {
+    return this.guarantorRequests
+      .filter(r => r.guarantorMemberId === memberId)
+      .map(r => ({ ...r, requestedAt: new Date(r.requestedAt), respondedAt: r.respondedAt ? new Date(r.respondedAt) : undefined }));
+  }
+
+  getGuarantorRequestsForApplication(applicationId: string): GuarantorRequest[] {
+    return this.guarantorRequests
+      .filter(r => r.applicationId === applicationId)
+      .map(r => ({ ...r, requestedAt: new Date(r.requestedAt), respondedAt: r.respondedAt ? new Date(r.respondedAt) : undefined }));
+  }
+
+  updateGuarantorRequest(id: string, status: 'approved' | 'declined'): GuarantorRequest | undefined {
+    const idx = this.guarantorRequests.findIndex(r => r.id === id);
+    if (idx === -1) return undefined;
+    this.guarantorRequests[idx] = { ...this.guarantorRequests[idx], status, respondedAt: new Date() };
+    this.saveCollectionToStorage('guarantorRequests', this.guarantorRequests);
+    return this.guarantorRequests[idx];
+  }
+
+  getActiveGuaranteesCount(memberId: string): number {
+    // Count approved guarantor requests for loans that are still active (pending/approved/disbursed but not rejected)
+    return this.guarantorRequests.filter(
+      r => r.guarantorMemberId === memberId && r.status === 'approved' && r.type === 'loan'
+    ).length;
+  }
+
+  // ─── Broadcast Messages ────────────────────────────────────────────────────
+
+  private broadcastMessages: BroadcastMessage[] = this.loadKeyFromStorage<BroadcastMessage[]>('broadcastMessages') || [];
+
+  createBroadcastMessage(data: Omit<BroadcastMessage, 'id' | 'sentAt' | 'readBy'>): BroadcastMessage {
+    const msg: BroadcastMessage = {
+      ...data,
+      id: `bm${Date.now()}`,
+      sentAt: new Date(),
+      readBy: [],
+    };
+    this.broadcastMessages.push(msg);
+    this.saveCollectionToStorage('broadcastMessages', this.broadcastMessages);
+    return msg;
+  }
+
+  getBroadcastMessages(): BroadcastMessage[] {
+    return this.broadcastMessages
+      .map(m => ({ ...m, sentAt: new Date(m.sentAt) }))
+      .sort((a, b) => b.sentAt.getTime() - a.sentAt.getTime());
+  }
+
+  markBroadcastRead(msgId: string, memberId: string): void {
+    const idx = this.broadcastMessages.findIndex(m => m.id === msgId);
+    if (idx !== -1 && !this.broadcastMessages[idx].readBy.includes(memberId)) {
+      this.broadcastMessages[idx].readBy.push(memberId);
+      this.saveCollectionToStorage('broadcastMessages', this.broadcastMessages);
+    }
+  }
+
+  // ─── Levies ────────────────────────────────────────────────────────────────
+
+  private levies: Levy[] = this.loadKeyFromStorage<Levy[]>('levies') || [];
+
+  createLevy(data: Omit<Levy, 'id' | 'imposedAt' | 'status'>): Levy {
+    const levy: Levy = {
+      ...data,
+      id: `lv${Date.now()}`,
+      imposedAt: new Date(),
+      status: 'active',
+    };
+    this.levies.push(levy);
+    this.saveCollectionToStorage('levies', this.levies);
+    return levy;
+  }
+
+  getLevies(): Levy[] {
+    return this.levies.map(l => ({ ...l, imposedAt: new Date(l.imposedAt) }));
+  }
+
+  // ─── Member Status ─────────────────────────────────────────────────────────
+
+  async updateMemberStatus(memberId: string, status: 'active' | 'suspended' | 'inactive'): Promise<Member | undefined> {
+    return this.updateMember(memberId, { status });
+  }
+
+  // ─── Private helpers ───────────────────────────────────────────────────────
+
+  private loadKeyFromStorage<T>(key: string): T | null {
+    try {
+      if (typeof window === 'undefined') return null;
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) as T : null;
+    } catch { return null; }
+  }
+
+  private saveCollectionToStorage(key: string, data: unknown): void {
+    try {
+      if (typeof window !== 'undefined') localStorage.setItem(key, JSON.stringify(data));
+    } catch { /* ignore */ }
   }
 }
 

@@ -19,6 +19,12 @@ export interface SocietySettings {
     minMembershipMonthsForLoan: number;
     /** Society name as shown in reports */
     societyName: string;
+    /** Number of guarantors required for a loan application. Default: 2 */
+    loanGuarantorCount: number;
+    /** Number of guarantors required for a membership application. Default: 2 */
+    membershipGuarantorCount: number;
+    /** Maximum simultaneous active guarantees a member can hold. Default: 2 */
+    maxActiveGuaranteesPerMember: number;
 }
 
 const STORAGE_KEY = 'societySettings';
@@ -29,6 +35,9 @@ const DEFAULTS: SocietySettings = {
     maxLoanMultiple: 2,
     minMembershipMonthsForLoan: 6,
     societyName: 'Osuolale Cooperative Society',
+    loanGuarantorCount: 2,
+    membershipGuarantorCount: 2,
+    maxActiveGuaranteesPerMember: 2,
 };
 
 /** Load settings from localStorage (merges with defaults for missing keys) */

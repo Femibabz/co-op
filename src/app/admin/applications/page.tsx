@@ -12,7 +12,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { db } from '@/lib/mock-data';
 import { EmailService } from '@/lib/email-service';
-import { MembershipApplication } from '@/types';
+import { MembershipApplication, GuarantorRequest } from '@/types';
+import { ShieldCheck, ShieldX, Shield } from 'lucide-react';
 
 export default function ApplicationsPage() {
   const [applications, setApplications] = useState<MembershipApplication[]>([]);
@@ -23,6 +24,7 @@ export default function ApplicationsPage() {
   const [reviewNotes, setReviewNotes] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [guarantorRequests, setGuarantorRequests] = useState<GuarantorRequest[]>([]);
 
   useEffect(() => {
     loadApplications();
@@ -56,6 +58,8 @@ export default function ApplicationsPage() {
   const handleViewApplication = (application: MembershipApplication) => {
     setSelectedApplication(application);
     setReviewNotes('');
+    const reqs = db.getGuarantorRequestsForApplication(application.id);
+    setGuarantorRequests(reqs);
     setIsDialogOpen(true);
   };
 
@@ -357,6 +361,43 @@ export default function ApplicationsPage() {
                 </div>
               </div>
 
+              {/* Guarantor Status from Workflow */}
+              {guarantorRequests.length > 0 && (
+                <div className="border-t pt-4">
+                  <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                    <ShieldCheck className="h-5 w-5 text-violet-600" /> Guarantor Approvals
+                  </h3>
+                  <div className="space-y-2">
+                    {guarantorRequests.map(req => {
+                      const gMember = members.find(m => m.id === req.guarantorMemberId);
+                      return (
+                        <div key={req.id} className="flex items-center justify-between p-3 rounded-lg border">
+                          <div className="flex items-center gap-2">
+                            {req.status === 'approved' ? <ShieldCheck className="h-4 w-4 text-green-600" /> :
+                              req.status === 'declined' ? <ShieldX className="h-4 w-4 text-red-600" /> :
+                                <Shield className="h-4 w-4 text-slate-400" />}
+                            <span className="text-sm font-medium">
+                              {gMember ? `${gMember.firstName} ${gMember.lastName} (${gMember.memberNumber})` : req.guarantorMemberId}
+                            </span>
+                          </div>
+                          <Badge variant={req.status === 'approved' ? 'default' : req.status === 'declined' ? 'destructive' : 'secondary'}>
+                            {req.status}
+                          </Badge>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {guarantorRequests.some(r => r.status !== 'approved') && (
+                    <Alert className="mt-3">
+                      <ShieldX className="h-4 w-4" />
+                      <AlertDescription>
+                        <strong>Approval blocked:</strong> All guarantors must approve before this application can be accepted.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+              )}
+
               {/* Review Notes */}
               {selectedApplication.status === 'pending' && (
                 <div className="border-t pt-4">
@@ -395,19 +436,23 @@ export default function ApplicationsPage() {
               )}
 
               {/* Actions */}
-              {selectedApplication.status === 'pending' && (
-                <div className="flex justify-end space-x-2 pt-4 border-t">
-                  <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button variant="destructive" onClick={handleRejectApplication}>
-                    Reject Application
-                  </Button>
-                  <Button onClick={handleApproveApplication}>
-                    Approve & Create Member
-                  </Button>
-                </div>
-              )}
+              {selectedApplication.status === 'pending' && (() => {
+                const allGuarantorsApproved = guarantorRequests.length === 0 || guarantorRequests.every(r => r.status === 'approved');
+                return (
+                  <div className="flex flex-col gap-2 pt-4 border-t">
+                    {!allGuarantorsApproved && (
+                      <Alert variant="destructive">
+                        <AlertDescription>Application cannot be approved until all guarantors have responded and approved.</AlertDescription>
+                      </Alert>
+                    )}
+                    <div className="flex justify-end space-x-2">
+                      <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+                      <Button variant="destructive" onClick={handleRejectApplication}>Reject Application</Button>
+                      <Button onClick={handleApproveApplication} disabled={!allGuarantorsApproved}>Approve &amp; Create Member</Button>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
         </DialogContent>

@@ -23,12 +23,17 @@ import {
   Calculator
 } from 'lucide-react';
 import { db } from '@/lib/mock-data';
+import { getSocietySettings } from '@/lib/society-settings';
 import { Member } from '@/types';
 
 export default function ApplyLoanPage() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
   const [member, setMember] = useState<Member | null>(null);
+  const [allMembers, setAllMembers] = useState<Member[]>([]);
+  const [guarantorCount, setGuarantorCount] = useState(2);
+  const [maxGuarantees, setMaxGuarantees] = useState(2);
+  const [selectedGuarantors, setSelectedGuarantors] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
@@ -44,6 +49,12 @@ export default function ApplyLoanPage() {
       if (user) {
         const memberData = await db.getMemberByUserId(user.id);
         setMember(memberData || null);
+        const members = await db.getMembers();
+        setAllMembers(members.filter(m => m.id !== memberData?.id && m.status === 'active'));
+        const settings = getSocietySettings();
+        setGuarantorCount(settings.loanGuarantorCount);
+        setMaxGuarantees(settings.maxActiveGuaranteesPerMember);
+        setSelectedGuarantors(Array(settings.loanGuarantorCount).fill(''));
       }
     };
     loadMember();
@@ -107,17 +118,45 @@ export default function ApplyLoanPage() {
         return;
       }
 
+      // Guarantor validation
+      if (guarantorCount > 0) {
+        const filled = selectedGuarantors.filter(g => g !== '');
+        if (filled.length < guarantorCount) {
+          setError(`Please select ${guarantorCount} guarantor(s).`);
+          return;
+        }
+        const unique = new Set(filled);
+        if (unique.size < filled.length) {
+          setError('Each guarantor must be a different member.');
+          return;
+        }
+      }
+
       if (loanAmount > maxLoanAmount) {
         setError(`Exceeds maximum limit.`);
         return;
       }
 
-      await db.createLoanApplication({
+      const loanApp = await db.createLoanApplication({
         memberId: member.id,
         amount: loanAmount,
         purpose,
         duration: loanDuration,
+        guarantorIds: selectedGuarantors.filter(g => g !== ''),
+        guarantorCount,
       });
+
+      // Create guarantor requests
+      const filledGuarantors = selectedGuarantors.filter(g => g !== '');
+      for (const gId of filledGuarantors) {
+        db.createGuarantorRequest({
+          type: 'loan',
+          applicationId: loanApp.id,
+          applicantName: `${member.firstName} ${member.lastName}`,
+          guarantorMemberId: gId,
+          status: 'pending',
+        });
+      }
 
       setSuccess(true);
       setTimeout(() => router.push('/member'), 3000);
@@ -253,6 +292,59 @@ export default function ApplyLoanPage() {
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* ── Guarantor Selection ─────────────────────── */}
+              {guarantorCount > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-violet-600" />
+                    <Label className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                      Guarantors Required ({guarantorCount})
+                    </Label>
+                  </div>
+                  <p className="text-xs text-slate-500 pl-6">Select existing society members who will vouch for this loan. They must approve via their dashboard before the admin can disburse.</p>
+                  {Array.from({ length: guarantorCount }).map((_, idx) => {
+                    const otherSelections = selectedGuarantors.filter((_, i) => i !== idx);
+                    return (
+                      <div key={idx} className="space-y-1">
+                        <Label className="text-xs text-slate-500 pl-1">Guarantor {idx + 1}</Label>
+                        <Select
+                          value={selectedGuarantors[idx] || ''}
+                          onValueChange={(v) => {
+                            setSelectedGuarantors(prev => {
+                              const next = [...prev];
+                              next[idx] = v;
+                              return next;
+                            });
+                          }}
+                          disabled={!isEligibleForLoan}
+                        >
+                          <SelectTrigger className="h-12 bg-slate-50/50 border-slate-200 rounded-xl focus:bg-white font-medium">
+                            <SelectValue placeholder="Select a member..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {allMembers.map(m => {
+                              const activeGuarantees = db.getActiveGuaranteesCount(m.id);
+                              const atLimit = activeGuarantees >= maxGuarantees;
+                              const alreadyPicked = otherSelections.includes(m.id);
+                              return (
+                                <SelectItem
+                                  key={m.id}
+                                  value={m.id}
+                                  disabled={atLimit || alreadyPicked}
+                                >
+                                  {m.firstName} {m.lastName} ({m.memberNumber})
+                                  {atLimit ? ' — at guarantee limit' : ''}
+                                </SelectItem>
+                              );
+                            })}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="purpose" className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Purpose of Fund</Label>
