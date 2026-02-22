@@ -110,11 +110,17 @@ export function calculateAccumulatedInterest(member: Member): {
     ? new Date(lastCalc.getFullYear(), lastCalc.getMonth() + 1, 1)
     : firstChargeDate;
 
-  // Current month start (today's month day-1)
-  const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  // The ceiling is the START OF NEXT MONTH so that interest fires ON the 1st.
+  // Example: today = Feb 1 → nextMonthStart = Mar 1
+  //   startChargeDate = Feb 1 → monthsToCalculate = getMonthsDiff(Feb 1, Mar 1) = 1  ✓
+  // Example: today = Feb 15 → nextMonthStart = Mar 1
+  //   startChargeDate = Mar 1 (interest was charged on Feb 1) → 0  ✓
+  // Example: today = Mar 1  → nextMonthStart = Apr 1
+  //   startChargeDate = Mar 1 → getMonthsDiff(Mar 1, Apr 1) = 1  ✓
+  const ceilingMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
-  // How many complete months of interest are due
-  const monthsToCalculate = getMonthsDifference(startChargeDate, currentMonthStart);
+  // Calculate how many months of interest to charge
+  const monthsToCalculate = getMonthsDifference(startChargeDate, ceilingMonth);
   if (monthsToCalculate <= 0) return empty;
 
   // Build month-by-month breakdown
