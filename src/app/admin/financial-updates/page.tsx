@@ -28,6 +28,7 @@ export default function FinancialUpdatesPage() {
     savingsAdd: '',     // amount to ADD to savings
     loanDeduct: '',     // amount to DEDUCT from loan (payment)
     interestDeduct: '', // amount to DEDUCT from interest (payment)
+    duesDeduct: '',     // amount to DEDUCT from dues (payment)
     updateReason: '',
   });
 
@@ -37,6 +38,7 @@ export default function FinancialUpdatesPage() {
     savingsAdd: '',
     loanDeduct: '',
     interestDeduct: '',
+    duesDeduct: '',
   });
 
   const [pendingUpdate, setPendingUpdate] = useState<{
@@ -44,6 +46,7 @@ export default function FinancialUpdatesPage() {
     savings: { old: number; delta: number; new: number };
     loan: { old: number; delta: number; new: number };
     interest: { old: number; delta: number; new: number };
+    dues: { old: number; delta: number; new: number };
   } | null>(null);
 
   useEffect(() => { loadMembers(); }, []);
@@ -68,8 +71,8 @@ export default function FinancialUpdatesPage() {
     const member = members.find(m => m.id === memberId);
     if (member) {
       setSelectedMember(member);
-      setDeltaForm({ sharesAdd: '', savingsAdd: '', loanDeduct: '', interestDeduct: '', updateReason: '' });
-      setDisplayForm({ sharesAdd: '', savingsAdd: '', loanDeduct: '', interestDeduct: '' });
+      setDeltaForm({ sharesAdd: '', savingsAdd: '', loanDeduct: '', interestDeduct: '', duesDeduct: '', updateReason: '' });
+      setDisplayForm({ sharesAdd: '', savingsAdd: '', loanDeduct: '', interestDeduct: '', duesDeduct: '' });
       setError('');
       setSuccess('');
     }
@@ -90,12 +93,14 @@ export default function FinancialUpdatesPage() {
     const savingsAdd = parseFloat(deltaForm.savingsAdd) || 0;
     const loanDeduct = parseFloat(deltaForm.loanDeduct) || 0;
     const interestDeduct = parseFloat(deltaForm.interestDeduct) || 0;
+    const duesDeduct = parseFloat(deltaForm.duesDeduct) || 0;
 
     return {
       shares: { old: selectedMember.sharesBalance, delta: sharesAdd, new: selectedMember.sharesBalance + sharesAdd },
       savings: { old: selectedMember.savingsBalance, delta: savingsAdd, new: selectedMember.savingsBalance + savingsAdd },
       loan: { old: selectedMember.loanBalance, delta: -loanDeduct, new: Math.max(0, selectedMember.loanBalance - loanDeduct) },
       interest: { old: selectedMember.interestBalance, delta: -interestDeduct, new: Math.max(0, selectedMember.interestBalance - interestDeduct) },
+      dues: { old: selectedMember.societyDues, delta: -duesDeduct, new: Math.max(0, selectedMember.societyDues - duesDeduct) },
     };
   };
 
@@ -108,12 +113,13 @@ export default function FinancialUpdatesPage() {
     const savingsAdd = parseFloat(deltaForm.savingsAdd) || 0;
     const loanDeduct = parseFloat(deltaForm.loanDeduct) || 0;
     const interestDeduct = parseFloat(deltaForm.interestDeduct) || 0;
+    const duesDeduct = parseFloat(deltaForm.duesDeduct) || 0;
 
-    if (sharesAdd < 0 || savingsAdd < 0 || loanDeduct < 0 || interestDeduct < 0) {
+    if (sharesAdd < 0 || savingsAdd < 0 || loanDeduct < 0 || interestDeduct < 0 || duesDeduct < 0) {
       setError('Amounts cannot be negative');
       return;
     }
-    if (sharesAdd === 0 && savingsAdd === 0 && loanDeduct === 0 && interestDeduct === 0) {
+    if (sharesAdd === 0 && savingsAdd === 0 && loanDeduct === 0 && interestDeduct === 0 && duesDeduct === 0) {
       setError('Please enter at least one amount to update');
       return;
     }
@@ -123,6 +129,10 @@ export default function FinancialUpdatesPage() {
     }
     if (interestDeduct > selectedMember.interestBalance) {
       setError(`Interest deduction (${formatCurrency(interestDeduct)}) exceeds current interest balance (${formatCurrency(selectedMember.interestBalance)})`);
+      return;
+    }
+    if (duesDeduct > selectedMember.societyDues) {
+      setError(`Society dues deduction (${formatCurrency(duesDeduct)}) exceeds current society dues balance (${formatCurrency(selectedMember.societyDues)})`);
       return;
     }
     if (!deltaForm.updateReason.trim()) {
@@ -143,6 +153,7 @@ export default function FinancialUpdatesPage() {
       const newSavings = pendingUpdate.savings.new;
       const newLoan = pendingUpdate.loan.new;
       const newInterest = pendingUpdate.interest.new;
+      const newDues = pendingUpdate.dues.new;
 
       let monthlyLoanPayment: number | undefined;
       if (newLoan === 0) monthlyLoanPayment = 0;
@@ -152,6 +163,7 @@ export default function FinancialUpdatesPage() {
         savingsBalance: newSavings,
         loanBalance: newLoan,
         interestBalance: newInterest,
+        societyDues: newDues,
         ...(monthlyLoanPayment !== undefined && { monthlyLoanPayment }),
       });
 
@@ -212,10 +224,24 @@ export default function FinancialUpdatesPage() {
           });
         }
 
+        // Society dues payment
+        if (pendingUpdate.dues.delta < 0) {
+          await db.createTransaction({
+            memberId: selectedMember.id,
+            type: 'dues_payment',
+            amount: Math.abs(pendingUpdate.dues.delta),
+            description: `Payment: ${deltaForm.updateReason}`,
+            date: new Date(),
+            balanceAfter: newDues,
+            referenceNumber: `${ref}-DP`,
+            processedBy: 'admin',
+          });
+        }
+
         setSuccess('Financial balances updated successfully');
         setSelectedMember(updatedMember);
-        setDeltaForm({ sharesAdd: '', savingsAdd: '', loanDeduct: '', interestDeduct: '', updateReason: '' });
-        setDisplayForm({ sharesAdd: '', savingsAdd: '', loanDeduct: '', interestDeduct: '' });
+        setDeltaForm({ sharesAdd: '', savingsAdd: '', loanDeduct: '', interestDeduct: '', duesDeduct: '', updateReason: '' });
+        setDisplayForm({ sharesAdd: '', savingsAdd: '', loanDeduct: '', interestDeduct: '', duesDeduct: '' });
         loadMembers();
         setIsConfirmDialogOpen(false);
         setPendingUpdate(null);
@@ -229,7 +255,7 @@ export default function FinancialUpdatesPage() {
 
   const changes = selectedMember ? calculateChanges() : null;
   const hasAnyChange = changes
-    ? changes.shares.delta !== 0 || changes.savings.delta !== 0 || changes.loan.delta !== 0 || changes.interest.delta !== 0
+    ? changes.shares.delta !== 0 || changes.savings.delta !== 0 || changes.loan.delta !== 0 || changes.interest.delta !== 0 || changes.dues.delta !== 0
     : false;
 
   return (
@@ -282,6 +308,7 @@ export default function FinancialUpdatesPage() {
                   { label: 'SAVINGS', value: selectedMember.savingsBalance, color: 'text-green-600', icon: <PiggyBank className="w-4 h-4" /> },
                   { label: 'LOAN', value: selectedMember.loanBalance, color: 'text-orange-600', icon: <CreditCard className="w-4 h-4" /> },
                   { label: 'INTEREST DUE', value: selectedMember.interestBalance, color: 'text-red-600', icon: <BadgeDollarSign className="w-4 h-4" /> },
+                  { label: 'SOCIETY DUES', value: selectedMember.societyDues, color: 'text-amber-600', icon: <BadgeDollarSign className="w-4 h-4" /> },
                 ].map(item => (
                   <div key={item.label} className="p-4 border rounded-lg space-y-1">
                     <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-widest">
@@ -413,6 +440,30 @@ export default function FinancialUpdatesPage() {
                       </p>
                     )}
                   </div>
+
+                  {/* Society Dues — DEDUCT */}
+                  <div className="space-y-2">
+                    <Label htmlFor="duesDeduct" className="flex items-center gap-2">
+                      <TrendingDown className="w-4 h-4 text-amber-500" />
+                      Society Dues Payment / Deduction (NGN)
+                    </Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">−</span>
+                      <Input
+                        id="duesDeduct"
+                        inputMode="numeric"
+                        value={displayForm.duesDeduct}
+                        onChange={e => handleDeltaChange('duesDeduct', e.target.value)}
+                        placeholder="0"
+                        className="pl-7"
+                      />
+                    </div>
+                    {changes && changes.dues.delta < 0 && (
+                      <p className="text-xs text-amber-600 font-medium">
+                        {formatCurrency(changes.dues.old)} <ArrowRight className="inline w-3 h-3" /> {formatCurrency(changes.dues.new)}
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 {/* Live summary */}
@@ -443,6 +494,12 @@ export default function FinancialUpdatesPage() {
                         <span className="font-bold text-red-600">{formatCurrency(changes.interest.delta)} → {formatCurrency(changes.interest.new)}</span>
                       </div>
                     )}
+                    {changes && changes.dues.delta !== 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-600">Society Dues</span>
+                        <span className="font-bold text-amber-600">{formatCurrency(changes.dues.delta)} → {formatCurrency(changes.dues.new)}</span>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -462,8 +519,8 @@ export default function FinancialUpdatesPage() {
                 <div className="flex justify-end gap-2">
                   <Button type="button" variant="outline" onClick={() => {
                     setSelectedMember(null);
-                    setDeltaForm({ sharesAdd: '', savingsAdd: '', loanDeduct: '', interestDeduct: '', updateReason: '' });
-                    setDisplayForm({ sharesAdd: '', savingsAdd: '', loanDeduct: '', interestDeduct: '' });
+                    setDeltaForm({ sharesAdd: '', savingsAdd: '', loanDeduct: '', interestDeduct: '', duesDeduct: '', updateReason: '' });
+                    setDisplayForm({ sharesAdd: '', savingsAdd: '', loanDeduct: '', interestDeduct: '', duesDeduct: '' });
                   }}>Cancel</Button>
                   <Button type="submit" disabled={isSubmitting || !hasAnyChange}>
                     Review & Confirm
@@ -524,6 +581,15 @@ export default function FinancialUpdatesPage() {
                     <span className="font-mono">
                       {formatCurrency(pendingUpdate.interest.old)} → <span className="font-bold text-red-600">{formatCurrency(pendingUpdate.interest.new)}</span>
                       <span className="ml-2 text-red-500">({formatCurrency(pendingUpdate.interest.delta)})</span>
+                    </span>
+                  </div>
+                )}
+                {pendingUpdate.dues.delta !== 0 && (
+                  <div className="flex justify-between items-center px-4 py-3">
+                    <span className="text-slate-500">Society Dues</span>
+                    <span className="font-mono">
+                      {formatCurrency(pendingUpdate.dues.old)} → <span className="font-bold text-amber-600">{formatCurrency(pendingUpdate.dues.new)}</span>
+                      <span className="ml-2 text-amber-500">({formatCurrency(pendingUpdate.dues.delta)})</span>
                     </span>
                   </div>
                 )}
