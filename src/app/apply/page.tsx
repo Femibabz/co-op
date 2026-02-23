@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { FileText, Book, Users, DollarSign, Scale, Eye, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react';
 import { db } from '@/lib/mock-data';
 import { ByLaw } from '@/types';
+import { getSocietySettings } from '@/lib/society-settings';
 
 export default function ApplyPage() {
   const router = useRouter();
@@ -32,8 +33,8 @@ export default function ApplyPage() {
     email: '',
     phone: '',
     address: '',
-    guarantor1MemberId: '',
-    guarantor2MemberId: '',
+    guarantor1Id: '',
+    guarantor2Id: '',
   });
 
   useEffect(() => {
@@ -64,27 +65,26 @@ export default function ApplyPage() {
     setError('');
 
     try {
+      const settings = getSocietySettings();
+
       // Validate required fields
-      const requiredFields = ['firstName', 'lastName', 'email', 'phone', 'address', 'guarantor1MemberId', 'guarantor2MemberId'];
+      const requiredFields = ['firstName', 'lastName', 'email', 'phone', 'address'];
       const missingFields = requiredFields.filter(field => !formData[field as keyof typeof formData]);
 
       if (missingFields.length > 0) {
-        setError('Please fill in all required fields including both guarantors');
+        setError('Please fill in all required personal information');
+        return;
+      }
+
+      // Check if all required guarantors are selected
+      if (!formData.guarantor1Id || !formData.guarantor2Id) {
+        setError('Please select both required guarantors');
         return;
       }
 
       // Validate guarantors are different
-      if (formData.guarantor1MemberId === formData.guarantor2MemberId) {
-        setError('Please select two different guarantors');
-        return;
-      }
-
-      // Get guarantor details
-      const guarantor1 = members.find(m => m.id === formData.guarantor1MemberId);
-      const guarantor2 = members.find(m => m.id === formData.guarantor2MemberId);
-
-      if (!guarantor1 || !guarantor2) {
-        setError('Invalid guarantor selection');
+      if (formData.guarantor1Id === formData.guarantor2Id) {
+        setError('Please select different members as guarantors');
         return;
       }
 
@@ -96,12 +96,10 @@ export default function ApplyPage() {
         email: formData.email,
         phone: formData.phone,
         address: formData.address,
-        guarantor1MemberId: guarantor1.id,
-        guarantor1Name: `${guarantor1.firstName} ${guarantor1.lastName}`,
-        guarantor1MemberNumber: guarantor1.memberNumber,
-        guarantor2MemberId: guarantor2.id,
-        guarantor2Name: `${guarantor2.firstName} ${guarantor2.lastName}`,
-        guarantor2MemberNumber: guarantor2.memberNumber,
+        guarantor1Id: formData.guarantor1Id,
+        guarantor2Id: formData.guarantor2Id,
+        guarantorIds: [formData.guarantor1Id, formData.guarantor2Id],
+        guarantorCount: 2,
       });
 
       setSuccess(true);
@@ -109,8 +107,8 @@ export default function ApplyPage() {
         router.push('/');
       }, 3000);
 
-    } catch (err) {
-      setError('Failed to submit application. Please try again.');
+    } catch (err: any) {
+      setError(err.message || 'Failed to submit application. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -389,63 +387,73 @@ export default function ApplyPage() {
 
                 <div className="p-8 rounded-3xl bg-slate-50/50 border-2 border-slate-100 border-dashed text-center">
                   <p className="text-sm font-bold text-slate-500 max-w-md mx-auto">
-                    Admission requires endorsement from <span className="text-slate-900">two established society members</span> in good standing.
+                    Admission requires endorsement from <span className="text-slate-900">{getSocietySettings().membershipGuarantorCount} established society members</span> in good standing.
                   </p>
                 </div>
 
                 <div className="grid gap-8 md:grid-cols-2">
-                  {/* Primary Guarantor */}
+                  {/* Guarantor 1 */}
                   <div className="space-y-4">
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-black">01</div>
                       <Label htmlFor="guarantor1" className="text-xs font-black text-slate-900 uppercase tracking-widest">Primary Guarantor</Label>
                     </div>
                     <Select
-                      value={formData.guarantor1MemberId}
-                      onValueChange={(value) => setFormData(prev => ({ ...prev, guarantor1MemberId: value }))}
+                      value={formData.guarantor1Id}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, guarantor1Id: value }))}
                     >
                       <SelectTrigger id="guarantor1" className="h-14 px-6 rounded-2xl bg-white border-2 border-slate-100 focus:border-emerald-500 transition-all font-bold text-slate-700">
                         <SelectValue placeholder="Identify member" />
                       </SelectTrigger>
                       <SelectContent className="rounded-2xl border-none shadow-xl">
-                        {members.map((member) => (
-                          <SelectItem
-                            key={member.id}
-                            value={member.id}
-                            disabled={member.id === formData.guarantor2MemberId}
-                            className="h-12 px-4 font-bold rounded-xl focus:bg-emerald-50 focus:text-emerald-700"
-                          >
-                            {member.memberNumber} • {member.firstName} {member.lastName}
-                          </SelectItem>
-                        ))}
+                        {members.map((m) => {
+                          const settings = getSocietySettings();
+                          const isAtLimit = db.getActiveGuaranteesCount(m.id) >= settings.maxActiveGuaranteesPerMember;
+                          const isSelectedElsewhere = formData.guarantor2Id === m.id;
+                          return (
+                            <SelectItem
+                              key={m.id}
+                              value={m.id}
+                              disabled={isSelectedElsewhere || isAtLimit}
+                              className="h-12 px-4 font-bold rounded-xl focus:bg-emerald-50 focus:text-emerald-700"
+                            >
+                              {m.memberNumber} • {m.firstName} {m.lastName} {isAtLimit ? '(At limit)' : ''}
+                            </SelectItem>
+                          );
+                        })}
                       </SelectContent>
                     </Select>
                   </div>
 
-                  {/* Secondary Guarantor */}
+                  {/* Guarantor 2 */}
                   <div className="space-y-4">
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 rounded-full bg-teal-600 text-white flex items-center justify-center text-[10px] font-black">02</div>
                       <Label htmlFor="guarantor2" className="text-xs font-black text-slate-900 uppercase tracking-widest">Secondary Guarantor</Label>
                     </div>
                     <Select
-                      value={formData.guarantor2MemberId}
-                      onValueChange={(value) => setFormData(prev => ({ ...prev, guarantor2MemberId: value }))}
+                      value={formData.guarantor2Id}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, guarantor2Id: value }))}
                     >
                       <SelectTrigger id="guarantor2" className="h-14 px-6 rounded-2xl bg-white border-2 border-slate-100 focus:border-teal-500 transition-all font-bold text-slate-700">
                         <SelectValue placeholder="Identify member" />
                       </SelectTrigger>
                       <SelectContent className="rounded-2xl border-none shadow-xl">
-                        {members.map((member) => (
-                          <SelectItem
-                            key={member.id}
-                            value={member.id}
-                            disabled={member.id === formData.guarantor1MemberId}
-                            className="h-12 px-4 font-bold rounded-xl focus:bg-teal-50 focus:text-teal-700"
-                          >
-                            {member.memberNumber} • {member.firstName} {member.lastName}
-                          </SelectItem>
-                        ))}
+                        {members.map((m) => {
+                          const settings = getSocietySettings();
+                          const isAtLimit = db.getActiveGuaranteesCount(m.id) >= settings.maxActiveGuaranteesPerMember;
+                          const isSelectedElsewhere = formData.guarantor1Id === m.id;
+                          return (
+                            <SelectItem
+                              key={m.id}
+                              value={m.id}
+                              disabled={isSelectedElsewhere || isAtLimit}
+                              className="h-12 px-4 font-bold rounded-xl focus:bg-teal-50 focus:text-teal-700"
+                            >
+                              {m.memberNumber} • {m.firstName} {m.lastName} {isAtLimit ? '(At limit)' : ''}
+                            </SelectItem>
+                          );
+                        })}
                       </SelectContent>
                     </Select>
                   </div>

@@ -443,12 +443,10 @@ export const mockApplications: MembershipApplication[] = [
     email: 'david.johnson@email.com',
     phone: '+234-803-456-7890',
     address: '789 Port Harcourt Street, Port Harcourt',
-    guarantor1MemberId: 'm1',
-    guarantor1Name: 'John Doe',
-    guarantor1MemberNumber: 'OSU001',
-    guarantor2MemberId: 'm2',
-    guarantor2Name: 'Jane Smith',
-    guarantor2MemberNumber: 'OSU002',
+    guarantor1Id: 'm1',
+    guarantor2Id: 'm2',
+    guarantorIds: ['m1', 'm2'],
+    guarantorCount: 2,
     status: 'pending',
     appliedAt: new Date('2024-03-01'),
   },
@@ -460,12 +458,10 @@ export const mockApplications: MembershipApplication[] = [
     email: 'mary.okafor@email.com',
     phone: '+234-805-678-9012',
     address: '101 Kano Avenue, Kano',
-    guarantor1MemberId: 'm1',
-    guarantor1Name: 'John Doe',
-    guarantor1MemberNumber: 'OSU001',
-    guarantor2MemberId: 'm2',
-    guarantor2Name: 'Jane Smith',
-    guarantor2MemberNumber: 'OSU002',
+    guarantor1Id: 'm1',
+    guarantor2Id: 'm2',
+    guarantorIds: ['m1', 'm2'],
+    guarantorCount: 2,
     status: 'pending',
     appliedAt: new Date('2024-03-05'),
   },
@@ -807,7 +803,8 @@ export class MockDatabase {
               ? new Date(m.last_interest_calculation_date)
               : undefined,
             annualIncome: m.annual_income,
-            loanEligibilityOverride: m.loan_eligibility_override
+            loanEligibilityOverride: m.loan_eligibility_override,
+            allowNewLoanWithBalance: m.allow_new_loan_with_balance
           }));
 
           // Auto-apply any pending monthly interest.
@@ -869,7 +866,8 @@ export class MockDatabase {
             loanInterestRate: data.loan_interest_rate,
             monthlyLoanPayment: data.monthly_loan_payment,
             annualIncome: data.annual_income,
-            loanEligibilityOverride: data.loan_eligibility_override
+            loanEligibilityOverride: data.loan_eligibility_override,
+            allowNewLoanWithBalance: data.allow_new_loan_with_balance
           };
 
           // Auto-calculate pending interest
@@ -931,7 +929,8 @@ export class MockDatabase {
             loanInterestRate: data.loan_interest_rate,
             monthlyLoanPayment: data.monthly_loan_payment,
             annualIncome: data.annual_income,
-            loanEligibilityOverride: data.loan_eligibility_override
+            loanEligibilityOverride: data.loan_eligibility_override,
+            allowNewLoanWithBalance: data.allow_new_loan_with_balance
           };
 
           // Auto-calculate pending interest
@@ -978,6 +977,7 @@ export class MockDatabase {
         if (updates.monthlyLoanPayment !== undefined) updateData.monthly_loan_payment = updates.monthlyLoanPayment;
         if (updates.annualIncome !== undefined) updateData.annual_income = updates.annualIncome;
         if (updates.loanEligibilityOverride !== undefined) updateData.loan_eligibility_override = updates.loanEligibilityOverride;
+        if (updates.allowNewLoanWithBalance !== undefined) updateData.allow_new_loan_with_balance = updates.allowNewLoanWithBalance;
 
         const { data, error } = await supabase
           .from('members')
@@ -1014,7 +1014,8 @@ export class MockDatabase {
             loanInterestRate: data.loan_interest_rate,
             monthlyLoanPayment: data.monthly_loan_payment,
             annualIncome: data.annual_income,
-            loanEligibilityOverride: data.loan_eligibility_override
+            loanEligibilityOverride: data.loan_eligibility_override,
+            allowNewLoanWithBalance: data.allow_new_loan_with_balance
           };
 
           // Update localStorage
@@ -1043,9 +1044,27 @@ export class MockDatabase {
   }
 
   async createMember(member: Omit<Member, 'id' | 'dateJoined'>): Promise<Member> {
+    // Check if member already exists
+    const existingMember = this.members.find(m => m.email === member.email && m.societyId === member.societyId);
+    if (existingMember) {
+      throw new Error('A member with this email already exists in this society.');
+    }
+
     // Try Supabase first
     if (isSupabaseConfigured()) {
       try {
+        // Double check in Supabase
+        const { data: existingSupabaseMember } = await supabase
+          .from('members')
+          .select('id')
+          .eq('email', member.email)
+          .eq('society_id', member.societyId)
+          .maybeSingle();
+
+        if (existingSupabaseMember) {
+          throw new Error('A member with this email already exists in this society.');
+        }
+
         const { data, error } = await supabase
           .from('members')
           .insert([{
@@ -1068,7 +1087,8 @@ export class MockDatabase {
             loan_interest_rate: member.loanInterestRate,
             monthly_loan_payment: member.monthlyLoanPayment,
             annual_income: member.annualIncome,
-            loan_eligibility_override: member.loanEligibilityOverride
+            loan_eligibility_override: member.loanEligibilityOverride,
+            allow_new_loan_with_balance: member.allowNewLoanWithBalance
           }])
           .select()
           .single();
@@ -1141,28 +1161,35 @@ export class MockDatabase {
           throw error;
         }
 
-        if (data) {
+        if (data && data.length > 0) {
           // Convert Supabase response to MembershipApplication format
-          const applications: MembershipApplication[] = data.map(app => ({
-            id: app.id,
-            societyId: app.society_id,
-            firstName: app.first_name,
-            lastName: app.last_name,
-            email: app.email,
-            phone: app.phone,
-            address: app.address,
-            guarantor1MemberId: app.guarantor1_member_id || app.guarantor_name || '',
-            guarantor1Name: app.guarantor1_name || app.guarantor_name || '',
-            guarantor1MemberNumber: app.guarantor1_member_number || '',
-            guarantor2MemberId: app.guarantor2_member_id || '',
-            guarantor2Name: app.guarantor2_name || '',
-            guarantor2MemberNumber: app.guarantor2_member_number || '',
-            status: app.status as 'pending' | 'approved' | 'rejected',
-            appliedAt: new Date(app.applied_at),
-            reviewedAt: app.reviewed_at ? new Date(app.reviewed_at) : undefined,
-            reviewedBy: app.reviewed_by || undefined,
-            reviewNotes: app.review_notes || undefined
-          }));
+          const applications: MembershipApplication[] = data.map(app => {
+            const guarantorIds = [app.guarantor_id1, app.guarantor_id2].filter(Boolean) as string[];
+            return {
+              id: app.id,
+              societyId: app.society_id || 'soc1',
+              firstName: app.first_name || 'N/A',
+              lastName: app.last_name || 'N/A',
+              email: app.email || 'N/A',
+              phone: app.phone || 'N/A',
+              address: app.address || 'N/A',
+              occupation: app.occupation || undefined,
+              monthlyIncome: app.monthly_income ? Number(app.monthly_income) : undefined,
+              guarantor1Id: app.guarantor_id1,
+              guarantor2Id: app.guarantor_id2,
+              guarantorIds,
+              guarantorCount: 2,
+              status: (app.status as any) || 'pending',
+              appliedAt: app.applied_at ? new Date(app.applied_at) : new Date(),
+              reviewedAt: app.reviewed_at ? new Date(app.reviewed_at) : undefined,
+              reviewedBy: app.reviewed_by || undefined,
+              reviewNotes: app.review_notes || undefined
+            };
+          });
+
+          // Sync localStorage
+          this.applications = applications;
+          this.saveToStorage();
 
           return applications;
         }
@@ -1207,12 +1234,8 @@ export class MockDatabase {
             email: data.email,
             phone: data.phone,
             address: data.address,
-            guarantor1MemberId: data.guarantor1_member_id || data.guarantor_name || '',
-            guarantor1Name: data.guarantor1_name || data.guarantor_name || '',
-            guarantor1MemberNumber: data.guarantor1_member_number || '',
-            guarantor2MemberId: data.guarantor2_member_id || '',
-            guarantor2Name: data.guarantor2_name || '',
-            guarantor2MemberNumber: data.guarantor2_member_number || '',
+            guarantorIds: data.guarantor_ids || [],
+            guarantorCount: data.guarantor_count || 0,
             status: data.status as 'pending' | 'approved' | 'rejected',
             appliedAt: new Date(data.applied_at),
             reviewedAt: data.reviewed_at ? new Date(data.reviewed_at) : undefined,
@@ -1246,9 +1269,43 @@ export class MockDatabase {
   }
 
   async createApplication(application: Omit<MembershipApplication, 'id' | 'appliedAt' | 'status'>): Promise<MembershipApplication> {
+    // Check if user is already a member
+    const existingMember = this.members.find(m => m.email === application.email && m.societyId === application.societyId);
+    if (existingMember) {
+      throw new Error('You are already a member of this society.');
+    }
+
+    // Check if application already exists
+    const existingApp = this.applications.find(a =>
+      a.email === application.email &&
+      a.societyId === application.societyId &&
+      (a.status === 'pending' || a.status === 'approved')
+    );
+    if (existingApp) {
+      throw new Error('An active application with this email already exists for this society.');
+    }
+
     // Try Supabase first
     if (isSupabaseConfigured()) {
       try {
+        // Double check in Supabase
+        const [{ data: supabaseMember }, { data: supabaseApp }] = await Promise.all([
+          supabase.from('members').select('id').eq('email', application.email).eq('society_id', application.societyId).maybeSingle(),
+          supabase.from('membership_applications')
+            .select('id')
+            .eq('email', application.email)
+            .eq('society_id', application.societyId)
+            .in('status', ['pending', 'approved'])
+            .maybeSingle()
+        ]);
+
+        if (supabaseMember) {
+          throw new Error('You are already a member of this society.');
+        }
+        if (supabaseApp) {
+          throw new Error('An active application with this email already exists for this society.');
+        }
+
         const { data, error } = await supabase
           .from('membership_applications')
           .insert([{
@@ -1258,19 +1315,17 @@ export class MockDatabase {
             email: application.email,
             phone: application.phone,
             address: application.address,
-            guarantor1_member_id: application.guarantor1MemberId,
-            guarantor1_name: application.guarantor1Name,
-            guarantor1_member_number: application.guarantor1MemberNumber,
-            guarantor2_member_id: application.guarantor2MemberId,
-            guarantor2_name: application.guarantor2Name,
-            guarantor2_member_number: application.guarantor2MemberNumber,
+            guarantor_id1: application.guarantor1Id || application.guarantorIds?.[0],
+            guarantor_id2: application.guarantor2Id || application.guarantorIds?.[1],
+            occupation: application.occupation || '',
+            monthly_income: application.monthlyIncome || 0,
             status: 'pending'
           }])
           .select()
           .single();
 
         if (error) {
-          console.warn('Supabase insert error:', error);
+          console.error('CRITICAL: Supabase membership_applications insert error:', error.message, '| details:', error.details, '| hint:', error.hint);
           throw error;
         }
 
@@ -1283,12 +1338,12 @@ export class MockDatabase {
           email: data.email,
           phone: data.phone,
           address: data.address,
-          guarantor1MemberId: data.guarantor1_member_id,
-          guarantor1Name: data.guarantor1_name,
-          guarantor1MemberNumber: data.guarantor1_member_number,
-          guarantor2MemberId: data.guarantor2_member_id,
-          guarantor2Name: data.guarantor2_name,
-          guarantor2MemberNumber: data.guarantor2_member_number,
+          occupation: data.occupation || undefined,
+          monthlyIncome: data.monthly_income ? Number(data.monthly_income) : undefined,
+          guarantor1Id: data.guarantor_id1,
+          guarantor2Id: data.guarantor_id2,
+          guarantorIds: [data.guarantor_id1, data.guarantor_id2].filter(Boolean) as string[],
+          guarantorCount: 2,
           status: data.status as 'pending' | 'approved' | 'rejected',
           appliedAt: new Date(data.applied_at),
           reviewedAt: data.reviewed_at ? new Date(data.reviewed_at) : undefined,
@@ -1296,13 +1351,25 @@ export class MockDatabase {
           reviewNotes: data.review_notes || undefined
         };
 
+        // Create guarantor requests for this application in Supabase
+        const guarantorIds = [data.guarantor_id1, data.guarantor_id2].filter(Boolean) as string[];
+        for (const guarantorId of guarantorIds) {
+          await this.createGuarantorRequest({
+            type: 'membership',
+            applicationId: data.id,
+            applicantName: `${data.first_name} ${data.last_name}`,
+            guarantorMemberId: guarantorId,
+            status: 'pending'
+          });
+        }
+
         // Also save to localStorage as backup
         this.applications.push(newApplication);
         this.saveToStorage();
 
         return newApplication;
-      } catch (error) {
-        console.warn('Error creating application in Supabase:', error);
+      } catch (error: any) {
+        console.error('FATAL: Error creating application in Supabase. Falling back to LocalStorage.', error.message || error);
         // Fall through to localStorage fallback
       }
     }
@@ -1314,6 +1381,21 @@ export class MockDatabase {
       appliedAt: new Date(),
       status: 'pending',
     };
+
+    // Create guarantor requests for this application
+    if (application.guarantorIds && application.guarantorIds.length > 0) {
+      for (const guarantorId of application.guarantorIds) {
+        // Note: This will now call the new createGuarantorRequest which handles Supabase
+        await this.createGuarantorRequest({
+          type: 'membership',
+          applicationId: newApplication.id,
+          applicantName: `${newApplication.firstName} ${newApplication.lastName}`,
+          guarantorMemberId: guarantorId,
+          status: 'pending'
+        });
+      }
+    }
+
     this.applications.push(newApplication);
     this.saveToStorage();
     return newApplication;
@@ -1336,19 +1418,26 @@ export class MockDatabase {
 
         if (data) {
           // Convert Supabase response to LoanApplication format
-          const loanApplications: LoanApplication[] = data.map(loan => ({
-            id: loan.id,
-            memberId: loan.member_id,
-            amount: loan.amount,
-            purpose: loan.purpose,
-            duration: loan.duration,
-            status: loan.status as 'pending' | 'approved' | 'rejected',
-            appliedAt: new Date(loan.applied_at),
-            reviewedAt: loan.reviewed_at ? new Date(loan.reviewed_at) : undefined,
-            reviewedBy: loan.reviewed_by || undefined,
-            reviewNotes: loan.review_notes || undefined,
-            disbursedAt: loan.disbursed_at ? new Date(loan.disbursed_at) : undefined
-          }));
+          const loanApplications: LoanApplication[] = data.map(loan => {
+            const guarantorIds = [loan.guarantor_id1, loan.guarantor_id2].filter(Boolean) as string[];
+            return {
+              id: loan.id,
+              memberId: loan.member_id || 'N/A',
+              amount: loan.amount || 0,
+              purpose: loan.purpose || 'N/A',
+              duration: loan.duration || 0,
+              guarantor1Id: loan.guarantor_id1,
+              guarantor2Id: loan.guarantor_id2,
+              guarantorIds,
+              guarantorCount: 2,
+              status: (loan.status as any) || 'pending',
+              appliedAt: loan.applied_at ? new Date(loan.applied_at) : new Date(),
+              reviewedAt: loan.reviewed_at ? new Date(loan.reviewed_at) : undefined,
+              reviewedBy: loan.reviewed_by || undefined,
+              reviewNotes: loan.review_notes || undefined,
+              disbursedAt: loan.disbursed_at ? new Date(loan.disbursed_at) : undefined
+            };
+          });
 
           return loanApplications;
         }
@@ -1379,19 +1468,26 @@ export class MockDatabase {
 
         if (data) {
           // Convert Supabase response to LoanApplication format
-          const loanApplications: LoanApplication[] = data.map(loan => ({
-            id: loan.id,
-            memberId: loan.member_id,
-            amount: loan.amount,
-            purpose: loan.purpose,
-            duration: loan.duration,
-            status: loan.status as 'pending' | 'approved' | 'rejected',
-            appliedAt: new Date(loan.applied_at),
-            reviewedAt: loan.reviewed_at ? new Date(loan.reviewed_at) : undefined,
-            reviewedBy: loan.reviewed_by || undefined,
-            reviewNotes: loan.review_notes || undefined,
-            disbursedAt: loan.disbursed_at ? new Date(loan.disbursed_at) : undefined
-          }));
+          const loanApplications: LoanApplication[] = data.map(loan => {
+            const guarantorIds = [loan.guarantor_id1, loan.guarantor_id2].filter(Boolean) as string[];
+            return {
+              id: loan.id,
+              memberId: loan.member_id || 'N/A',
+              amount: loan.amount || 0,
+              purpose: loan.purpose || 'N/A',
+              duration: loan.duration || 0,
+              guarantor1Id: loan.guarantor_id1,
+              guarantor2Id: loan.guarantor_id2,
+              guarantorIds,
+              guarantorCount: 2,
+              status: (loan.status as any) || 'pending',
+              appliedAt: loan.applied_at ? new Date(loan.applied_at) : new Date(),
+              reviewedAt: loan.reviewed_at ? new Date(loan.reviewed_at) : undefined,
+              reviewedBy: loan.reviewed_by || undefined,
+              reviewNotes: loan.review_notes || undefined,
+              disbursedAt: loan.disbursed_at ? new Date(loan.disbursed_at) : undefined
+            };
+          });
 
           return loanApplications;
         }
@@ -1435,7 +1531,11 @@ export class MockDatabase {
             amount: data.amount,
             purpose: data.purpose,
             duration: data.duration,
-            status: data.status as 'pending' | 'approved' | 'rejected',
+            guarantor1Id: data.guarantor_id1,
+            guarantor2Id: data.guarantor_id2,
+            guarantorIds: [data.guarantor_id1, data.guarantor_id2].filter(Boolean) as string[],
+            guarantorCount: 2,
+            status: data.status as 'pending' | 'approved' | 'rejected' | 'disbursed',
             appliedAt: new Date(data.applied_at),
             reviewedAt: data.reviewed_at ? new Date(data.reviewed_at) : undefined,
             reviewedBy: data.reviewed_by || undefined,
@@ -1479,13 +1579,15 @@ export class MockDatabase {
             amount: application.amount,
             purpose: application.purpose,
             duration: application.duration,
+            guarantor_id1: application.guarantor1Id || application.guarantorIds?.[0],
+            guarantor_id2: application.guarantor2Id || application.guarantorIds?.[1],
             status: 'pending'
           }])
           .select()
           .single();
 
         if (error) {
-          console.warn('Supabase insert error:', error);
+          console.error('CRITICAL: Supabase loan_applications insert error:', error.message, '| details:', error.details, '| hint:', error.hint);
           throw error;
         }
 
@@ -1496,13 +1598,32 @@ export class MockDatabase {
           amount: data.amount,
           purpose: data.purpose,
           duration: data.duration,
-          status: data.status as 'pending' | 'approved' | 'rejected',
+          guarantor1Id: data.guarantor_id1,
+          guarantor2Id: data.guarantor_id2,
+          guarantorIds: [data.guarantor_id1, data.guarantor_id2].filter(Boolean) as string[],
+          guarantorCount: 2,
+          status: data.status as 'pending' | 'approved' | 'rejected' | 'disbursed',
           appliedAt: new Date(data.applied_at),
           reviewedAt: data.reviewed_at ? new Date(data.reviewed_at) : undefined,
           reviewedBy: data.reviewed_by || undefined,
           reviewNotes: data.review_notes || undefined,
           disbursedAt: data.disbursed_at ? new Date(data.disbursed_at) : undefined
         };
+
+        // Create guarantor requests for this application in Supabase
+        const guarantorIds = [data.guarantor_id1, data.guarantor_id2].filter(Boolean) as string[];
+        const member = this.members.find(m => m.id === data.member_id);
+        const applicantName = member ? `${member.firstName} ${member.lastName}` : `Member ${data.member_id}`;
+
+        for (const guarantorId of guarantorIds) {
+          await this.createGuarantorRequest({
+            type: 'loan',
+            applicationId: data.id,
+            applicantName,
+            guarantorMemberId: guarantorId,
+            status: 'pending'
+          });
+        }
 
         // Also save to localStorage as backup
         this.loanApplications.push(newLoanApplication);
@@ -1522,6 +1643,18 @@ export class MockDatabase {
       appliedAt: new Date(),
       status: 'pending',
     };
+    // Create guarantor requests for this application
+    const guarantorIds = [application.guarantor1Id, application.guarantor2Id].filter(Boolean) as string[];
+    for (const guarantorId of guarantorIds) {
+      await this.createGuarantorRequest({
+        type: 'loan',
+        applicationId: newApplication.id,
+        applicantName: `Member ${newApplication.memberId}`,
+        guarantorMemberId: guarantorId,
+        status: 'pending'
+      });
+    }
+
     this.loanApplications.push(newApplication);
     this.saveToStorage();
     return newApplication;
@@ -2066,35 +2199,173 @@ export class MockDatabase {
 
   private guarantorRequests: GuarantorRequest[] = this.loadKeyFromStorage<GuarantorRequest[]>('guarantorRequests') || [];
 
-  createGuarantorRequest(data: Omit<GuarantorRequest, 'id' | 'requestedAt'>): GuarantorRequest {
+  async createGuarantorRequest(data: Omit<GuarantorRequest, 'id' | 'requestedAt'>): Promise<GuarantorRequest> {
+    const id = `gr${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const requestedAt = new Date();
+
+    // Try Supabase first
+    if (isSupabaseConfigured()) {
+      try {
+        const { data: supabaseData, error } = await supabase
+          .from('guarantor_requests')
+          .insert([{
+            id,
+            type: data.type,
+            application_id: data.applicationId,
+            applicant_name: data.applicantName,
+            guarantor_member_id: data.guarantorMemberId,
+            status: data.status || 'pending',
+            requested_at: requestedAt.toISOString()
+          }])
+          .select()
+          .single();
+
+        if (error) {
+          console.warn('Supabase guarantor request insert error:', error);
+          throw error;
+        }
+
+        if (supabaseData) {
+          const newReq: GuarantorRequest = {
+            id: supabaseData.id,
+            type: supabaseData.type as 'loan' | 'membership',
+            applicationId: supabaseData.application_id,
+            applicantName: supabaseData.applicant_name,
+            guarantorMemberId: supabaseData.guarantor_member_id,
+            status: supabaseData.status as 'pending' | 'approved' | 'declined',
+            requestedAt: new Date(supabaseData.requested_at),
+            respondedAt: supabaseData.responded_at ? new Date(supabaseData.responded_at) : undefined
+          };
+
+          this.guarantorRequests.push(newReq);
+          this.saveCollectionToStorage('guarantorRequests', this.guarantorRequests);
+          return newReq;
+        }
+      } catch (error) {
+        console.warn('Error creating guarantor request in Supabase:', error);
+      }
+    }
+
     const req: GuarantorRequest = {
       ...data,
-      id: `gr${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-      requestedAt: new Date(),
+      id,
+      requestedAt,
     };
     this.guarantorRequests.push(req);
     this.saveCollectionToStorage('guarantorRequests', this.guarantorRequests);
     return req;
   }
 
-  getGuarantorRequestsForMember(memberId: string): GuarantorRequest[] {
+  async getGuarantorRequestsForMember(memberId: string): Promise<GuarantorRequest[]> {
+    if (isSupabaseConfigured()) {
+      try {
+        const { data, error } = await supabase
+          .from('guarantor_requests')
+          .select('*')
+          .eq('guarantor_member_id', memberId);
+
+        if (!error && data) {
+          return data.map(r => ({
+            id: r.id,
+            type: r.type as 'loan' | 'membership',
+            applicationId: r.application_id,
+            applicantName: r.applicant_name,
+            guarantorMemberId: r.guarantor_member_id,
+            status: r.status as 'pending' | 'approved' | 'declined',
+            requestedAt: new Date(r.requested_at),
+            respondedAt: r.responded_at ? new Date(r.responded_at) : undefined
+          }));
+        }
+      } catch (error) {
+        console.warn('Error fetching guarantor requests from Supabase:', error);
+      }
+    }
+
     return this.guarantorRequests
       .filter(r => r.guarantorMemberId === memberId)
       .map(r => ({ ...r, requestedAt: new Date(r.requestedAt), respondedAt: r.respondedAt ? new Date(r.respondedAt) : undefined }));
   }
 
-  getGuarantorRequestsForApplication(applicationId: string): GuarantorRequest[] {
+  async getGuarantorRequestsForApplication(applicationId: string): Promise<GuarantorRequest[]> {
+    if (isSupabaseConfigured()) {
+      try {
+        const { data, error } = await supabase
+          .from('guarantor_requests')
+          .select('*')
+          .eq('application_id', applicationId);
+
+        if (!error && data) {
+          return data.map(r => ({
+            id: r.id,
+            type: r.type as 'loan' | 'membership',
+            applicationId: r.application_id,
+            applicantName: r.applicant_name,
+            guarantorMemberId: r.guarantor_member_id,
+            status: r.status as 'pending' | 'approved' | 'declined',
+            requestedAt: new Date(r.requested_at),
+            respondedAt: r.responded_at ? new Date(r.responded_at) : undefined
+          }));
+        }
+      } catch (error) {
+        console.warn('Error fetching guarantor requests from Supabase:', error);
+      }
+    }
+
     return this.guarantorRequests
       .filter(r => r.applicationId === applicationId)
       .map(r => ({ ...r, requestedAt: new Date(r.requestedAt), respondedAt: r.respondedAt ? new Date(r.respondedAt) : undefined }));
   }
 
-  updateGuarantorRequest(id: string, status: 'approved' | 'declined'): GuarantorRequest | undefined {
-    const idx = this.guarantorRequests.findIndex(r => r.id === id);
-    if (idx === -1) return undefined;
-    this.guarantorRequests[idx] = { ...this.guarantorRequests[idx], status, respondedAt: new Date() };
-    this.saveCollectionToStorage('guarantorRequests', this.guarantorRequests);
-    return this.guarantorRequests[idx];
+  async updateGuarantorRequest(id: string, status: 'approved' | 'declined'): Promise<GuarantorRequest | undefined> {
+    const respondedAt = new Date();
+
+    if (isSupabaseConfigured()) {
+      try {
+        const { data, error } = await supabase
+          .from('guarantor_requests')
+          .update({
+            status,
+            responded_at: respondedAt.toISOString()
+          })
+          .eq('id', id)
+          .select()
+          .single();
+
+        if (!error && data) {
+          const updated: GuarantorRequest = {
+            id: data.id,
+            type: data.type as 'loan' | 'membership',
+            applicationId: data.application_id,
+            applicantName: data.applicant_name,
+            guarantorMemberId: data.guarantor_member_id,
+            status: data.status as 'pending' | 'approved' | 'declined',
+            requestedAt: new Date(data.requested_at),
+            respondedAt: new Date(data.responded_at)
+          };
+
+          const index = this.guarantorRequests.findIndex(r => r.id === id);
+          if (index !== -1) {
+            this.guarantorRequests[index] = updated;
+            this.saveCollectionToStorage('guarantorRequests', this.guarantorRequests);
+          }
+          return updated;
+        }
+      } catch (error) {
+        console.warn('Error updating guarantor request in Supabase:', error);
+      }
+    }
+
+    const index = this.guarantorRequests.findIndex(r => r.id === id);
+    if (index !== -1) {
+      this.guarantorRequests[index] = {
+        ...this.guarantorRequests[index],
+        status,
+        respondedAt,
+      };
+      this.saveCollectionToStorage('guarantorRequests', this.guarantorRequests);
+      return this.guarantorRequests[index];
+    }
+    return undefined;
   }
 
   getActiveGuaranteesCount(memberId: string): number {

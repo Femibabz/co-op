@@ -31,9 +31,8 @@ export default function ApplyLoanPage() {
   const router = useRouter();
   const [member, setMember] = useState<Member | null>(null);
   const [allMembers, setAllMembers] = useState<Member[]>([]);
-  const [guarantorCount, setGuarantorCount] = useState(2);
-  const [maxGuarantees, setMaxGuarantees] = useState(2);
-  const [selectedGuarantors, setSelectedGuarantors] = useState<string[]>([]);
+  const [guarantor1Id, setGuarantor1Id] = useState('');
+  const [guarantor2Id, setGuarantor2Id] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
@@ -52,9 +51,9 @@ export default function ApplyLoanPage() {
         const members = await db.getMembers();
         setAllMembers(members.filter(m => m.id !== memberData?.id && m.status === 'active'));
         const settings = getSocietySettings();
-        setGuarantorCount(settings.loanGuarantorCount);
-        setMaxGuarantees(settings.maxActiveGuaranteesPerMember);
-        setSelectedGuarantors(Array(settings.loanGuarantorCount).fill(''));
+        // Fixed 2 guarantors as per requirement
+        setGuarantor1Id('');
+        setGuarantor2Id('');
       }
     };
     loadMember();
@@ -93,7 +92,15 @@ export default function ApplyLoanPage() {
       const loanDuration = parseInt(duration);
 
       const totalWithOrganization = member.sharesBalance + member.savingsBalance;
-      const maxLoanAmount = totalWithOrganization * 2;
+      const totalGrossCapacity = totalWithOrganization * 2;
+      const currentDebt = member.loanBalance + member.interestBalance;
+      const netCapacity = Math.max(0, totalGrossCapacity - currentDebt);
+
+      if (loanAmount > netCapacity) {
+        setError(`Requested amount exceeds your current borrowing capacity of ${formatCurrency(netCapacity)}`);
+        setIsSubmitting(false);
+        return;
+      }
 
       const membershipDurationMonths = Math.floor((new Date().getTime() - new Date(member.dateJoined).getTime()) / (1000 * 60 * 60 * 24 * 30));
       const isEligibleByTenure = membershipDurationMonths >= 6 || member.loanEligibilityOverride === true;
@@ -108,55 +115,41 @@ export default function ApplyLoanPage() {
         return;
       }
 
-      if (member.loanBalance > 0) {
+      if (member.loanBalance > 0 && !member.allowNewLoanWithBalance) {
         setError('Outstanding loan must be cleared first.');
         return;
       }
 
-      if (member.interestBalance > 0) {
+      if (member.interestBalance > 0 && !member.allowNewLoanWithBalance) {
         setError('Outstanding interest must be cleared first.');
         return;
       }
 
       // Guarantor validation
-      if (guarantorCount > 0) {
-        const filled = selectedGuarantors.filter(g => g !== '');
-        if (filled.length < guarantorCount) {
-          setError(`Please select ${guarantorCount} guarantor(s).`);
-          return;
-        }
-        const unique = new Set(filled);
-        if (unique.size < filled.length) {
-          setError('Each guarantor must be a different member.');
-          return;
-        }
-      }
-
-      if (loanAmount > maxLoanAmount) {
-        setError(`Exceeds maximum limit.`);
+      if (!guarantor1Id || !guarantor2Id) {
+        setError('Please select both required guarantors.');
         return;
       }
+      if (guarantor1Id === guarantor2Id) {
+        setError('Please select different members as guarantors.');
+        return;
+      }
+
+      // Capacity check already performed above with netCapacity
 
       const loanApp = await db.createLoanApplication({
         memberId: member.id,
         amount: loanAmount,
         purpose,
         duration: loanDuration,
-        guarantorIds: selectedGuarantors.filter(g => g !== ''),
-        guarantorCount,
+        guarantor1Id,
+        guarantor2Id,
+        guarantorIds: [guarantor1Id, guarantor2Id],
+        guarantorCount: 2,
       });
 
-      // Create guarantor requests
-      const filledGuarantors = selectedGuarantors.filter(g => g !== '');
-      for (const gId of filledGuarantors) {
-        db.createGuarantorRequest({
-          type: 'loan',
-          applicationId: loanApp.id,
-          applicantName: `${member.firstName} ${member.lastName}`,
-          guarantorMemberId: gId,
-          status: 'pending',
-        });
-      }
+      // Note: db.createLoanApplication now handles guarantor request creation internally
+      // to ensure consistency across storage layers.
 
       setSuccess(true);
       setTimeout(() => router.push('/member'), 3000);
@@ -206,11 +199,15 @@ export default function ApplyLoanPage() {
   // Now we are sure success is false AND member is not null (due to the first check)
   if (!member) return null;
 
-  const totalWithOrganization = member.sharesBalance + member.savingsBalance;
-  const maxLoanAmount = totalWithOrganization * 2;
+  const totalHoldings = member.sharesBalance + member.savingsBalance;
+  const grossCapacity = totalHoldings * 2;
+  const currentDebt = member.loanBalance + member.interestBalance;
+  const netCapacity = Math.max(0, grossCapacity - currentDebt);
   const membershipDurationMonths = Math.floor((new Date().getTime() - new Date(member.dateJoined).getTime()) / (1000 * 60 * 60 * 24 * 30));
   const isEligibleByTenure = membershipDurationMonths >= 6 || member.loanEligibilityOverride === true;
-  const isEligibleForLoan = member.loanBalance === 0 && member.interestBalance === 0 && isEligibleByTenure;
+  const isEligibleForLoan = (member.loanBalance === 0 || member.allowNewLoanWithBalance) &&
+    (member.interestBalance === 0 || member.allowNewLoanWithBalance) &&
+    isEligibleByTenure;
 
   return (
     <div className="space-y-8 animate-fadeIn max-w-5xl mx-auto">
@@ -234,6 +231,21 @@ export default function ApplyLoanPage() {
               <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">Application Details</h3>
               <p className="text-slate-500 font-medium">Provide accurate details for your fund request.</p>
             </div>
+
+            {member.allowNewLoanWithBalance && (member.loanBalance > 0 || member.interestBalance > 0) && (
+              <div className="flex items-start gap-4 p-4 rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-800">
+                <div className="mt-0.5">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-extrabold uppercase tracking-tight">Special Loan Privilege Active</p>
+                  <p className="text-xs font-medium opacity-80 mt-1">
+                    An administrator has granted you an exception to apply for a new loan despite having an outstanding balance of <strong>{formatCurrency(member.loanBalance + member.interestBalance)}</strong>.
+                    If approved, this balance will be merged with your new loan.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {!isEligibleForLoan && (
               <div className="flex items-start gap-4 p-4 rounded-2xl bg-rose-50 border border-rose-100 text-rose-800">
@@ -265,7 +277,7 @@ export default function ApplyLoanPage() {
                       if (/^\d*\.?\d*$/.test(raw)) setFormData(prev => ({ ...prev, amount: raw }));
                     }}
                     placeholder="0.00"
-                    max={maxLoanAmount}
+                    max={netCapacity}
                     disabled={!isEligibleForLoan}
                     className="pl-8 h-12 bg-slate-50/50 border-slate-200 focus:bg-white transition-all rounded-xl font-bold text-lg"
                     required
@@ -274,7 +286,7 @@ export default function ApplyLoanPage() {
                 <div className="flex items-center gap-2 px-1">
                   <Info className="w-3.5 h-3.5 text-slate-400" />
                   <p className="text-xs text-slate-500 font-medium">
-                    Maximum allowed based on your holdings: <span className="text-slate-900 font-bold">{formatCurrency(maxLoanAmount)}</span>
+                    Maximum allowed based on your holdings: <span className="text-slate-900 font-bold">{formatCurrency(netCapacity)}</span>
                   </p>
                 </div>
               </div>
@@ -294,57 +306,57 @@ export default function ApplyLoanPage() {
               </div>
 
               {/* ── Guarantor Selection ─────────────────────── */}
-              {guarantorCount > 0 && (
+              <div className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-violet-600" />
-                    <Label className="text-xs font-bold text-slate-500 uppercase tracking-widest">
-                      Guarantors Required ({guarantorCount})
-                    </Label>
+                    <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-black">01</div>
+                    <Label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Primary Guarantor</Label>
                   </div>
-                  <p className="text-xs text-slate-500 pl-6">Select existing society members who will vouch for this loan. They must approve via their dashboard before the admin can disburse.</p>
-                  {Array.from({ length: guarantorCount }).map((_, idx) => {
-                    const otherSelections = selectedGuarantors.filter((_, i) => i !== idx);
-                    return (
-                      <div key={idx} className="space-y-1">
-                        <Label className="text-xs text-slate-500 pl-1">Guarantor {idx + 1}</Label>
-                        <Select
-                          value={selectedGuarantors[idx] || ''}
-                          onValueChange={(v) => {
-                            setSelectedGuarantors(prev => {
-                              const next = [...prev];
-                              next[idx] = v;
-                              return next;
-                            });
-                          }}
-                          disabled={!isEligibleForLoan}
-                        >
-                          <SelectTrigger className="h-12 bg-slate-50/50 border-slate-200 rounded-xl focus:bg-white font-medium">
-                            <SelectValue placeholder="Select a member..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {allMembers.map(m => {
-                              const activeGuarantees = db.getActiveGuaranteesCount(m.id);
-                              const atLimit = activeGuarantees >= maxGuarantees;
-                              const alreadyPicked = otherSelections.includes(m.id);
-                              return (
-                                <SelectItem
-                                  key={m.id}
-                                  value={m.id}
-                                  disabled={atLimit || alreadyPicked}
-                                >
-                                  {m.firstName} {m.lastName} ({m.memberNumber})
-                                  {atLimit ? ' — at guarantee limit' : ''}
-                                </SelectItem>
-                              );
-                            })}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    );
-                  })}
+                  <Select value={guarantor1Id} onValueChange={setGuarantor1Id} disabled={!isEligibleForLoan}>
+                    <SelectTrigger className="h-12 bg-slate-50/50 border-slate-200 rounded-xl focus:bg-white font-medium">
+                      <SelectValue placeholder="Identify member" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl">
+                      {allMembers.map(m => {
+                        const settings = getSocietySettings();
+                        const activeGuarantees = db.getActiveGuaranteesCount(m.id);
+                        const atLimit = activeGuarantees >= settings.maxActiveGuaranteesPerMember;
+                        const alreadyPicked = guarantor2Id === m.id;
+                        return (
+                          <SelectItem key={m.id} value={m.id} disabled={atLimit || alreadyPicked}>
+                            {m.firstName} {m.lastName} ({m.memberNumber}) {atLimit ? '— at limit' : ''}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
                 </div>
-              )}
+
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-teal-600 text-white flex items-center justify-center text-[10px] font-black">02</div>
+                    <Label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Secondary Guarantor</Label>
+                  </div>
+                  <Select value={guarantor2Id} onValueChange={setGuarantor2Id} disabled={!isEligibleForLoan}>
+                    <SelectTrigger className="h-12 bg-slate-50/50 border-slate-200 rounded-xl focus:bg-white font-medium">
+                      <SelectValue placeholder="Identify member" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl">
+                      {allMembers.map(m => {
+                        const settings = getSocietySettings();
+                        const activeGuarantees = db.getActiveGuaranteesCount(m.id);
+                        const atLimit = activeGuarantees >= settings.maxActiveGuaranteesPerMember;
+                        const alreadyPicked = guarantor1Id === m.id;
+                        return (
+                          <SelectItem key={m.id} value={m.id} disabled={atLimit || alreadyPicked}>
+                            {m.firstName} {m.lastName} ({m.memberNumber}) {atLimit ? '— at limit' : ''}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
 
               <div className="space-y-2">
                 <Label htmlFor="purpose" className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Purpose of Fund</Label>
@@ -442,12 +454,12 @@ export default function ApplyLoanPage() {
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Holding Power</p>
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-bold text-slate-900">Total Contributions</span>
-                  <span className="text-sm font-extrabold text-primary">{formatCurrency(totalWithOrganization)}</span>
+                  <span className="text-sm font-extrabold text-primary">{formatCurrency(totalHoldings)}</span>
                 </div>
               </div>
               <div className="p-4 rounded-2xl bg-slate-900 text-white space-y-1">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Borrowing Capacity (2x)</p>
-                <p className="text-xl font-extrabold tracking-tight">{formatCurrency(maxLoanAmount)}</p>
+                <p className="text-xl font-extrabold tracking-tight">{formatCurrency(netCapacity)}</p>
               </div>
             </div>
           </div>

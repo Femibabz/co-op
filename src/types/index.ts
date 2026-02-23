@@ -57,6 +57,7 @@ export interface Member {
   lastInterestCalculationDate?: Date; // Last time monthly interest was calculated
   // Admin overrides
   loanEligibilityOverride?: boolean; // Super admin can override 6-month requirement
+  allowNewLoanWithBalance?: boolean; // Admin can allow new loan with outstanding balance
 }
 
 export interface MembershipApplication {
@@ -67,14 +68,14 @@ export interface MembershipApplication {
   email: string;
   phone: string;
   address: string;
-  // First guarantor (must be an existing member)
-  guarantor1MemberId: string;
-  guarantor1Name: string;
-  guarantor1MemberNumber: string;
-  // Second guarantor (must be an existing member)
-  guarantor2MemberId: string;
-  guarantor2Name: string;
-  guarantor2MemberNumber: string;
+  occupation?: string;
+  monthlyIncome?: number;
+  // Guarantors (existing members)
+  guarantor1Id?: string;
+  guarantor2Id?: string;
+
+  guarantorIds?: string[];      // internal use for processing
+  guarantorCount?: number;      // internal use for processing
   status: 'pending' | 'approved' | 'rejected';
   appliedAt: Date;
   reviewedAt?: Date;
@@ -94,8 +95,10 @@ export interface LoanApplication {
   reviewedBy?: string;
   reviewNotes?: string;
   disbursedAt?: Date;
-  guarantorIds?: string[];      // member IDs selected as guarantors
-  guarantorCount?: number;      // required count snapshot at application time
+  guarantor1Id?: string;
+  guarantor2Id?: string;
+  guarantorIds?: string[];      // internal use for processing
+  guarantorCount?: number;      // internal use for processing
 }
 
 /** Tracks a guarantor's approval/decline for a loan or membership application */

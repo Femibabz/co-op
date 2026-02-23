@@ -86,12 +86,8 @@ export default function TestFlowPage() {
         email: `testbot.${Date.now()}@email.com`,
         phone: '+234-807-123-4567',
         address: '123 Test Street, Automation City',
-        guarantor1MemberId: 'm1',
-        guarantor1Name: 'John Doe',
-        guarantor1MemberNumber: 'OSU001',
-        guarantor2MemberId: 'm2',
-        guarantor2Name: 'Jane Smith',
-        guarantor2MemberNumber: 'OSU002'
+        guarantorIds: ['m1', 'm2'],
+        guarantorCount: 2,
       };
 
       const newApplication = await db.createApplication(testApplicationData);

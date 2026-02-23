@@ -46,7 +46,7 @@ export default function MemberDashboard() {
           const loans = await db.getLoanApplicationsByMember(memberData.id);
           setLoanApplications(loans);
           // Guarantor requests pending this member's response
-          const allReqs = db.getGuarantorRequestsForMember(memberData.id);
+          const allReqs = await db.getGuarantorRequestsForMember(memberData.id);
           setGuarantorRequests(allReqs.filter(r => r.status === 'pending'));
           setActiveGuarantees(allReqs.filter(r => r.status === 'approved'));
           // Unread broadcasts
@@ -113,6 +113,36 @@ export default function MemberDashboard() {
 
   return (
     <div className="space-y-8">
+      {/* ── Priority Action Banners (Prominent Pop-ups) ──────────────── */}
+      {guarantorRequests.length > 0 && (
+        <div className="animate-in slide-in-from-top duration-500">
+          <Card className="border-2 border-violet-200 bg-violet-50/50 shadow-xl shadow-violet-100/50 overflow-hidden rounded-[2rem]">
+            <div className="flex flex-col md:flex-row items-center gap-6 p-8">
+              <div className="w-16 h-16 rounded-2xl bg-violet-600 text-white flex items-center justify-center shrink-0 shadow-lg shadow-violet-600/20">
+                <ShieldCheck className="w-8 h-8" />
+              </div>
+              <div className="flex-1 text-center md:text-left space-y-1">
+                <h3 className="text-xl font-black text-violet-900 tracking-tight flex items-center justify-center md:justify-start gap-2">
+                  Action Required: Endorsement Request
+                  <Badge className="bg-violet-600 text-white border-none py-0.5">{guarantorRequests.length}</Badge>
+                </h3>
+                <p className="text-violet-700 font-bold">
+                  Members have requested your official endorsement for their applications. Your response is required to proceed.
+                </p>
+              </div>
+              <div className="shrink-0">
+                <Button
+                  onClick={() => document.getElementById('guarantor-requests-section')?.scrollIntoView({ behavior: 'smooth' })}
+                  className="rounded-xl px-8 h-12 bg-violet-600 hover:bg-violet-700 text-white font-black shadow-lg shadow-violet-600/20 active:scale-95 transition-all"
+                >
+                  Review Requests
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+
       {/* Welcome Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div className="space-y-1">
@@ -140,38 +170,44 @@ export default function MemberDashboard() {
       {/* ── Broadcast Messages ─────────────────────────────────── */}
       {broadcasts.length > 0 && (
         <div className="space-y-3">
-          {broadcasts.map(msg => (
-            <div key={msg.id} className="flex items-start gap-4 p-4 rounded-2xl bg-sky-50 border border-sky-200 text-sky-900">
-              <div className="mt-0.5 shrink-0">
-                <Megaphone className="w-5 h-5 text-sky-600" />
+          {broadcasts
+            .filter(msg => {
+              const fiveDaysAgo = new Date();
+              fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+              return new Date(msg.sentAt) >= fiveDaysAgo;
+            })
+            .map(msg => (
+              <div key={msg.id} className="flex items-start gap-4 p-4 rounded-2xl bg-sky-50 border border-sky-200 text-sky-900">
+                <div className="mt-0.5 shrink-0">
+                  <Megaphone className="w-5 h-5 text-sky-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-extrabold uppercase tracking-tight">{msg.subject}</p>
+                  <p className="text-xs font-medium opacity-80 mt-1 whitespace-pre-line">{msg.body}</p>
+                  <p className="text-[10px] mt-2 text-sky-600 font-bold">{new Date(msg.sentAt).toLocaleDateString()}</p>
+                </div>
+                <button
+                  onClick={() => {
+                    if (!member) return;
+                    db.markBroadcastRead(msg.id, member.id);
+                    setBroadcasts(prev => prev.filter(m => m.id !== msg.id));
+                  }}
+                  className="shrink-0 text-sky-400 hover:text-sky-700 transition-colors"
+                  title="Dismiss"
+                >
+                  <CheckCheck className="w-5 h-5" />
+                </button>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-extrabold uppercase tracking-tight">{msg.subject}</p>
-                <p className="text-xs font-medium opacity-80 mt-1 whitespace-pre-line">{msg.body}</p>
-                <p className="text-[10px] mt-2 text-sky-600 font-bold">{msg.sentAt.toLocaleDateString()}</p>
-              </div>
-              <button
-                onClick={() => {
-                  if (!member) return;
-                  db.markBroadcastRead(msg.id, member.id);
-                  setBroadcasts(prev => prev.filter(m => m.id !== msg.id));
-                }}
-                className="shrink-0 text-sky-400 hover:text-sky-700 transition-colors"
-                title="Dismiss"
-              >
-                <CheckCheck className="w-5 h-5" />
-              </button>
-            </div>
-          ))}
+            ))}
         </div>
       )}
 
       {/* ── Pending Guarantor Requests ─────────────────────────── */}
       {guarantorRequests.length > 0 && (
-        <div className="premium-card p-6 space-y-4 border-violet-200 bg-violet-50/40">
+        <div id="guarantor-requests-section" className="premium-card p-6 space-y-4 border-violet-200 bg-violet-50/40 scroll-mt-8">
           <div className="flex items-center gap-3">
             <Bell className="w-5 h-5 text-violet-600" />
-            <h3 className="font-extrabold text-violet-900 uppercase tracking-tight text-sm">Guarantor Requests</h3>
+            <h3 className="font-extrabold text-violet-900 uppercase tracking-tight text-sm">Official Requests</h3>
             <span className="ml-auto bg-violet-600 text-white text-xs font-bold rounded-full px-2 py-0.5">{guarantorRequests.length}</span>
           </div>
           <p className="text-xs text-violet-700 font-medium">These members have selected you as a guarantor for their application. Please review and respond.</p>
@@ -180,12 +216,12 @@ export default function MemberDashboard() {
               <div key={req.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-white border border-violet-100">
                 <div className="space-y-0.5">
                   <p className="text-sm font-bold text-slate-800">{req.applicantName}</p>
-                  <p className="text-xs text-slate-500">{req.type === 'loan' ? 'Loan Application' : 'Membership Application'} · Requested {req.requestedAt.toLocaleDateString()}</p>
+                  <p className="text-xs text-slate-500">{req.type === 'loan' ? 'Loan Application' : 'Membership Application'} · Requested {new Date(req.requestedAt).toLocaleDateString()}</p>
                 </div>
                 <div className="flex gap-2 shrink-0">
                   <button
                     onClick={async () => {
-                      db.updateGuarantorRequest(req.id, 'declined');
+                      await db.updateGuarantorRequest(req.id, 'declined');
                       setGuarantorRequests(prev => prev.filter(r => r.id !== req.id));
                     }}
                     className="px-3 py-1.5 rounded-lg text-xs font-bold border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
@@ -194,7 +230,7 @@ export default function MemberDashboard() {
                   </button>
                   <button
                     onClick={async () => {
-                      db.updateGuarantorRequest(req.id, 'approved');
+                      await db.updateGuarantorRequest(req.id, 'approved');
                       setGuarantorRequests(prev => prev.filter(r => r.id !== req.id));
                       loadDashboard();
                     }}
@@ -203,31 +239,6 @@ export default function MemberDashboard() {
                     Approve
                   </button>
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ── Active Guarantees ──────────────────────────────────── */}
-      {activeGuarantees.length > 0 && (
-        <div className="premium-card p-6 space-y-4">
-          <div className="flex items-center gap-3">
-            <Shield className="w-5 h-5 text-emerald-600" />
-            <h3 className="font-extrabold text-slate-800 uppercase tracking-tight text-sm">My Active Guarantees</h3>
-            <span className="ml-auto bg-slate-100 text-slate-600 text-xs font-bold rounded-full px-2 py-0.5">{activeGuarantees.length}</span>
-          </div>
-          <div className="space-y-2">
-            {activeGuarantees.map(req => (
-              <div key={req.id} className="flex items-center justify-between p-3 rounded-xl bg-emerald-50 border border-emerald-100">
-                <div className="flex items-center gap-3">
-                  <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <div>
-                    <p className="text-sm font-bold text-slate-800">{req.applicantName}</p>
-                    <p className="text-xs text-slate-500">{req.type === 'loan' ? 'Loan' : 'Membership'} · guaranteed {req.requestedAt.toLocaleDateString()}</p>
-                  </div>
-                </div>
-                <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">Active</span>
               </div>
             ))}
           </div>

@@ -55,10 +55,10 @@ export default function ApplicationsPage() {
     app.status.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleViewApplication = (application: MembershipApplication) => {
+  const handleViewApplication = async (application: MembershipApplication) => {
     setSelectedApplication(application);
     setReviewNotes('');
-    const reqs = db.getGuarantorRequestsForApplication(application.id);
+    const reqs = await db.getGuarantorRequestsForApplication(application.id);
     setGuarantorRequests(reqs);
     setIsDialogOpen(true);
   };
@@ -303,61 +303,92 @@ export default function ApplicationsPage() {
               {/* Guarantor Information */}
               <div className="border-t pt-4">
                 <h3 className="text-lg font-semibold mb-3">Guarantor Information</h3>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="p-3 border rounded-lg bg-blue-50">
-                    <h4 className="font-medium text-blue-900 mb-2">First Guarantor</h4>
-                    <div className="space-y-1 text-sm">
-                      <div>
-                        <Label className="text-xs">Name</Label>
-                        <p>{selectedApplication.guarantor1Name}</p>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {/* Primary Guarantor */}
+                  {(selectedApplication.guarantor1Id || (selectedApplication.guarantorIds && selectedApplication.guarantorIds.length > 0)) ? (() => {
+                    const gId = selectedApplication.guarantor1Id || selectedApplication.guarantorIds?.[0];
+                    const guarantor = members.find(m => m.id === gId);
+                    return (
+                      <div className="p-3 border rounded-lg bg-blue-50">
+                        <h4 className="font-medium text-blue-900 mb-2">Primary Guarantor</h4>
+                        <div className="space-y-1 text-sm">
+                          <div>
+                            <Label className="text-xs">Name</Label>
+                            <p>{guarantor ? `${guarantor.firstName} ${guarantor.lastName}` : 'N/A'}</p>
+                          </div>
+                          <div>
+                            <Label className="text-xs">Member Number</Label>
+                            <p>{guarantor?.memberNumber || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <Label className="text-xs">Phone Number</Label>
+                            <p>{guarantor?.phone || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <Label className="text-xs">Email</Label>
+                            <p className="break-all">{guarantor?.email || 'N/A'}</p>
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <Label className="text-xs">Member Number</Label>
-                        <p>{selectedApplication.guarantor1MemberNumber}</p>
-                      </div>
-                      <div>
-                        <Label className="text-xs">Phone Number</Label>
-                        <p>{(() => {
-                          const guarantor = members.find(m => m.id === selectedApplication.guarantor1MemberId);
-                          return guarantor?.phone || 'N/A';
-                        })()}</p>
-                      </div>
-                      <div>
-                        <Label className="text-xs">Email</Label>
-                        <p className="break-all">{(() => {
-                          const guarantor = members.find(m => m.id === selectedApplication.guarantor1MemberId);
-                          return guarantor?.email || 'N/A';
-                        })()}</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="p-3 border rounded-lg bg-green-50">
-                    <h4 className="font-medium text-green-900 mb-2">Second Guarantor</h4>
-                    <div className="space-y-1 text-sm">
-                      <div>
-                        <Label className="text-xs">Name</Label>
-                        <p>{selectedApplication.guarantor2Name}</p>
-                      </div>
-                      <div>
-                        <Label className="text-xs">Member Number</Label>
-                        <p>{selectedApplication.guarantor2MemberNumber}</p>
-                      </div>
-                      <div>
-                        <Label className="text-xs">Phone Number</Label>
-                        <p>{(() => {
-                          const guarantor = members.find(m => m.id === selectedApplication.guarantor2MemberId);
-                          return guarantor?.phone || 'N/A';
-                        })()}</p>
-                      </div>
-                      <div>
-                        <Label className="text-xs">Email</Label>
-                        <p className="break-all">{(() => {
-                          const guarantor = members.find(m => m.id === selectedApplication.guarantor2MemberId);
-                          return guarantor?.email || 'N/A';
-                        })()}</p>
+                    );
+                  })() : (
+                    <div className="p-3 border rounded-lg bg-blue-50">
+                      <h4 className="font-medium text-blue-900 mb-2">Primary Guarantor (Legacy)</h4>
+                      <div className="space-y-1 text-sm">
+                        <div>
+                          <Label className="text-xs">Name</Label>
+                          <p>{(selectedApplication as any).guarantor1Name || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <Label className="text-xs">Member Number</Label>
+                          <p>{(selectedApplication as any).guarantor1MemberNumber || 'N/A'}</p>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
+
+                  {/* Secondary Guarantor */}
+                  {(selectedApplication.guarantor2Id || (selectedApplication.guarantorIds && selectedApplication.guarantorIds.length > 1)) ? (() => {
+                    const gId = selectedApplication.guarantor2Id || selectedApplication.guarantorIds?.[1];
+                    const guarantor = members.find(m => m.id === gId);
+                    return (
+                      <div className="p-3 border rounded-lg bg-green-50">
+                        <h4 className="font-medium text-green-900 mb-2">Secondary Guarantor</h4>
+                        <div className="space-y-1 text-sm">
+                          <div>
+                            <Label className="text-xs">Name</Label>
+                            <p>{guarantor ? `${guarantor.firstName} ${guarantor.lastName}` : 'N/A'}</p>
+                          </div>
+                          <div>
+                            <Label className="text-xs">Member Number</Label>
+                            <p>{guarantor?.memberNumber || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <Label className="text-xs">Phone Number</Label>
+                            <p>{guarantor?.phone || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <Label className="text-xs">Email</Label>
+                            <p className="break-all">{guarantor?.email || 'N/A'}</p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })() : (
+                    <div className="p-3 border rounded-lg bg-green-50">
+                      <h4 className="font-medium text-green-900 mb-2">Secondary Guarantor (Legacy)</h4>
+                      <div className="space-y-1 text-sm">
+                        <div>
+                          <Label className="text-xs">Name</Label>
+                          <p>{(selectedApplication as any).guarantor2Name || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <Label className="text-xs">Member Number</Label>
+                          <p>{(selectedApplication as any).guarantor2MemberNumber || 'N/A'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 

@@ -64,13 +64,13 @@ export default function LoansPage() {
     );
   });
 
-  const handleViewLoan = (loan: LoanApplication) => {
+  const handleViewLoan = async (loan: LoanApplication) => {
     const member = getMemberByLoanId(loan.memberId);
     setSelectedLoan(loan);
     setSelectedMember(member);
     setReviewNotes('');
     // Load guarantor requests for this loan
-    const reqs = db.getGuarantorRequestsForApplication(loan.id);
+    const reqs = await db.getGuarantorRequestsForApplication(loan.id);
     setGuarantorRequests(reqs);
     setIsDialogOpen(true);
   };
@@ -93,16 +93,22 @@ export default function LoansPage() {
       // Stamp the CURRENT society interest rate onto this loan record
       // so it persists for the life of the loan even if the admin changes settings later.
       const { loanInterestRate } = getSocietySettings();
-      const principal = selectedLoan.amount;
-      const monthlyPayment = principal / (selectedLoan.duration || 12);
+
+      // Calculate new total principal (summing old loan + old interest + new loan)
+      const oldPrincipal = selectedMember.loanBalance || 0;
+      const oldInterest = selectedMember.interestBalance || 0;
+      const newPrincipal = oldPrincipal + oldInterest + selectedLoan.amount;
+      const monthlyPayment = newPrincipal / (selectedLoan.duration || 12);
 
       await db.updateMember(selectedMember.id, {
-        loanBalance: selectedMember.loanBalance + selectedLoan.amount,
+        loanBalance: newPrincipal,
+        interestBalance: 0,             // Fold any existing interest into new principal
         loanStartDate: approvalDate,
         loanDurationMonths: selectedLoan.duration || 12,
         loanInterestRate,               // rate from society settings at time of disbursement
         monthlyLoanPayment: monthlyPayment,
         lastInterestCalculationDate: approvalDate,
+        allowNewLoanWithBalance: false, // Reset override after it's used
       });
 
       // Create loan disbursement transaction
@@ -110,9 +116,9 @@ export default function LoansPage() {
         memberId: selectedMember.id,
         type: 'loan_disbursement',
         amount: selectedLoan.amount,
-        description: `Loan approved and disbursed - ${selectedLoan.purpose}`,
+        description: `Loan approved and disbursed - ${selectedLoan.purpose}${oldPrincipal > 0 ? ' (Balances merged)' : ''}`,
         date: approvalDate,
-        balanceAfter: selectedMember.loanBalance + selectedLoan.amount,
+        balanceAfter: newPrincipal,
         referenceNumber: `LN${Date.now()}`,
         processedBy: 'admin',
       });

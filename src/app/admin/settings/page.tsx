@@ -472,7 +472,27 @@ export default function SocietySettingsPage() {
                                     <AlertDescription>Member has outstanding balances. All balances must be cleared before status can be changed.</AlertDescription>
                                 </Alert>
                             )}
-                            <div className="flex gap-2 pt-2">
+                            <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100 mt-4">
+                                <Button
+                                    variant={selectedMember.allowNewLoanWithBalance ? "default" : "outline"}
+                                    onClick={async () => {
+                                        try {
+                                            const updated = await db.updateMember(selectedMember.id, {
+                                                allowNewLoanWithBalance: !selectedMember.allowNewLoanWithBalance
+                                            });
+                                            if (updated) {
+                                                setMembers(prev => prev.map(m => m.id === updated.id ? updated : m));
+                                                setStatusMsg(`✓ Loan exception ${!selectedMember.allowNewLoanWithBalance ? 'granted' : 'revoked'} for ${selectedMember.firstName}`);
+                                            }
+                                        } catch (err) {
+                                            setStatusMsg('Failed to update loan exception status.');
+                                        }
+                                    }}
+                                    className={`gap-2 ${selectedMember.allowNewLoanWithBalance ? 'bg-indigo-600 hover:bg-indigo-700' : 'border-indigo-200 text-indigo-700 hover:bg-indigo-50'}`}
+                                >
+                                    <ShieldCheck className="h-4 w-4" />
+                                    {selectedMember.allowNewLoanWithBalance ? 'Revoke Loan Exception' : 'Allow New Loan Application'}
+                                </Button>
                                 <Button
                                     variant="outline"
                                     disabled={!canChangeStatus || selectedMember.status === 'suspended'}
