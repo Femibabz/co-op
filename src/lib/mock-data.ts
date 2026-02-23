@@ -2369,10 +2369,34 @@ export class MockDatabase {
   }
 
   getActiveGuaranteesCount(memberId: string): number {
-    // Count approved guarantor requests for loans that are still active (pending/approved/disbursed but not rejected)
-    return this.guarantorRequests.filter(
+    let count = 0;
+    // Get all approved loan guarantor requests for this member
+    const approvedRequests = this.guarantorRequests.filter(
       r => r.guarantorMemberId === memberId && r.status === 'approved' && r.type === 'loan'
-    ).length;
+    );
+
+    for (const request of approvedRequests) {
+      // Find the application being guaranteed
+      const application = this.loanApplications.find(a => a.id === request.applicationId);
+
+      // If the application doesn't exist anymore or it was rejected, it shouldn't count
+      if (!application || application.status === 'rejected') continue;
+
+      // Find the member who applied for the loan (the borrower)
+      const borrower = this.members.find(m => m.id === application.memberId);
+      if (!borrower) continue;
+
+      // If the loan is still pending approval, it's an active guarantee obligation
+      if (application.status === 'pending') {
+        count++;
+      }
+      // If the loan was approved/disbursed, it only counts if the borrower still has a balance
+      else if ((borrower.loanBalance || 0) > 0 || (borrower.interestBalance || 0) > 0) {
+        count++;
+      }
+    }
+
+    return count;
   }
 
   // ─── Broadcast Messages ────────────────────────────────────────────────────
