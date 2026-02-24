@@ -2099,6 +2099,135 @@ export class MockDatabase {
     return false;
   }
 
+  async createSociety(data: Omit<Society, 'id' | 'createdAt' | 'adminUserId' | 'memberCount' | 'totalSavings' | 'totalLoans' | 'totalShares' | 'status'>, adminEmail: string): Promise<Society> {
+    const societyId = `soc${Date.now()}`;
+
+    // 1. Create the admin user for this society
+    const adminUser = await this.createUser({
+      email: adminEmail,
+      password: 'admin123', // Default admin password
+      role: 'admin',
+      societyId,
+      isFirstLogin: true,
+      isActive: true
+    });
+
+    // 2. Create the society record
+    const newSociety: Society = {
+      ...data,
+      id: societyId,
+      adminUserId: adminUser.id,
+      createdAt: new Date(),
+      status: 'active',
+      memberCount: 0,
+      totalSavings: 0,
+      totalLoans: 0,
+      totalShares: 0
+    };
+
+    // 3. Save to Supabase if configured
+    if (isSupabaseConfigured()) {
+      try {
+        const { error } = await supabase.from('societies').insert([{
+          id: newSociety.id,
+          name: newSociety.name,
+          registration_number: newSociety.registrationNumber,
+          address: newSociety.address,
+          phone: newSociety.phone,
+          email: newSociety.email,
+          status: newSociety.status,
+          admin_user_id: newSociety.adminUserId
+        }]);
+        if (error) console.warn('Supabase society insert error:', error);
+      } catch (err) {
+        console.warn('Supabase society insert exception:', err);
+      }
+    }
+
+    this.societies.push(newSociety);
+    this.saveToStorage();
+    return newSociety;
+  }
+
+  async createMemberWithUser(data: Omit<Member, 'id' | 'userId' | 'memberNumber' | 'dateJoined' | 'status' | 'sharesBalance' | 'savingsBalance' | 'loanBalance' | 'interestBalance' | 'societyDues'>): Promise<Member> {
+    const userId = `u${Date.now()}_${Math.random().toString(36).slice(2, 5)}`;
+
+    // 1. Create the user account
+    const user = await this.createUser({
+      email: data.email,
+      password: 'member123', // Specified default password
+      role: 'member',
+      societyId: data.societyId,
+      isFirstLogin: true,
+      isActive: true
+    });
+
+    // 2. Create the member record
+    const memberId = `m${Date.now()}`;
+    const newMember: Member = {
+      ...data,
+      id: memberId,
+      userId: user.id,
+      memberNumber: `MEM-${Date.now().toString().slice(-6)}`,
+      dateJoined: new Date(),
+      status: 'active',
+      sharesBalance: 0,
+      savingsBalance: 0,
+      loanBalance: 0,
+      interestBalance: 0,
+      societyDues: 0
+    };
+
+    // 3. Save member to Supabase
+    if (isSupabaseConfigured()) {
+      try {
+        const { error } = await supabase.from('members').insert([{
+          id: newMember.id,
+          user_id: newMember.userId,
+          society_id: newMember.societyId,
+          member_number: newMember.memberNumber,
+          first_name: newMember.firstName,
+          last_name: newMember.lastName,
+          email: newMember.email,
+          phone: newMember.phone,
+          status: newMember.status
+        }]);
+        if (error) console.warn('Supabase member insert error:', error);
+      } catch (err) {
+        console.warn('Supabase member insert exception:', err);
+      }
+    }
+
+    this.members.push(newMember);
+
+    // Increment member count in society
+    const socIndex = this.societies.findIndex(s => s.id === data.societyId);
+    if (socIndex !== -1) {
+      this.societies[socIndex].memberCount++;
+    }
+
+    this.saveToStorage();
+    return newMember;
+  }
+
+  async updateSocietyStatus(id: string, status: 'active' | 'suspended'): Promise<Society | undefined> {
+    const soc = this.societies.find(s => s.id === id);
+    if (!soc) return undefined;
+
+    soc.status = status;
+
+    if (isSupabaseConfigured()) {
+      try {
+        await supabase.from('societies').update({ status }).eq('id', id);
+      } catch (err) {
+        console.warn('Supabase society status update error:', err);
+      }
+    }
+
+    this.saveToStorage();
+    return soc;
+  }
+
   // Auto-calculate pending interest for a single member (once per session)
   private async autoCalculateInterestForMember(member: Member): Promise<Member> {
     // Only calculate if member has an active loan

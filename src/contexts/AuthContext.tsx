@@ -38,6 +38,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const foundUser = await db.findUserByEmail(email);
 
     if (foundUser && foundUser.password === password) {
+      // Check if society is suspended (if applicable)
+      if (foundUser.societyId) {
+        const society = db.getSocietyById(foundUser.societyId);
+        if (society && society.status === 'suspended') {
+          throw new Error('Your society has been suspended. Please contact the platform administrator.');
+        }
+      }
+
       // Only track sessions for admin users
       const shouldTrackSession = foundUser.role === 'admin' || foundUser.role === 'super_admin';
 
