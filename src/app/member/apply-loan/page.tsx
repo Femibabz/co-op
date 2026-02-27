@@ -48,7 +48,7 @@ export default function ApplyLoanPage() {
       if (user) {
         const memberData = await db.getMemberByUserId(user.id);
         setMember(memberData || null);
-        const members = await db.getMembers();
+        const members = await db.getMembers(user.societyId);
         setAllMembers(members.filter(m => m.id !== memberData?.id && m.status === 'active'));
         const settings = getSocietySettings();
         // Fixed 2 guarantors as per requirement
@@ -139,6 +139,7 @@ export default function ApplyLoanPage() {
 
       const loanApp = await db.createLoanApplication({
         memberId: member.id,
+        societyId: member.societyId,
         amount: loanAmount,
         purpose,
         duration: loanDuration,

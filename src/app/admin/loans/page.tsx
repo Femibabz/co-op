@@ -14,6 +14,7 @@ import { db } from '@/lib/mock-data';
 import { getSocietySettings } from '@/lib/society-settings';
 import { LoanApplication, Member, GuarantorRequest } from '@/types';
 import { ShieldCheck, ShieldX, Shield } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function LoansPage() {
   const [loanApplications, setLoanApplications] = useState<LoanApplication[]>([]);
@@ -27,13 +28,17 @@ export default function LoansPage() {
   const [success, setSuccess] = useState('');
   const [guarantorRequests, setGuarantorRequests] = useState<GuarantorRequest[]>([]);
 
+  const { user } = useAuth();
   useEffect(() => {
-    loadLoanApplications();
-  }, []);
+    if (user?.societyId) {
+      loadLoanApplications();
+    }
+  }, [user]);
 
   const loadLoanApplications = async () => {
-    const allLoans = await db.getLoanApplications();
-    const allMembers = await db.getMembers();
+    if (!user?.societyId) return;
+    const allLoans = await db.getLoanApplications(user.societyId);
+    const allMembers = await db.getMembers(user.societyId);
     // Sort by applied date (FIFO)
     allLoans.sort((a, b) => a.appliedAt.getTime() - b.appliedAt.getTime());
     setLoanApplications(allLoans);
@@ -114,6 +119,7 @@ export default function LoansPage() {
       // Create loan disbursement transaction
       await db.createTransaction({
         memberId: selectedMember.id,
+        societyId: selectedMember.societyId,
         type: 'loan_disbursement',
         amount: selectedLoan.amount,
         description: `Loan approved and disbursed - ${selectedLoan.purpose}${oldPrincipal > 0 ? ' (Balances merged)' : ''}`,

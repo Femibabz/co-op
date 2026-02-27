@@ -83,6 +83,7 @@ export default function ProcessPaymentPage() {
       if (paymentPreview.interestPaid > 0) {
         await db.createTransaction({
           memberId: selectedMember.id,
+          societyId: selectedMember.societyId,
           type: 'interest_payment',
           amount: paymentPreview.interestPaid,
           description: `Interest payment${paymentNote ? `: ${paymentNote}` : ''}`,
@@ -97,6 +98,7 @@ export default function ProcessPaymentPage() {
       if (paymentPreview.principalPaid > 0) {
         await db.createTransaction({
           memberId: selectedMember.id,
+          societyId: selectedMember.societyId,
           type: 'loan_payment',
           amount: paymentPreview.principalPaid,
           description: `Loan payment${paymentNote ? `: ${paymentNote}` : ''}`,

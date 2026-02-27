@@ -86,6 +86,7 @@ export interface MembershipApplication {
 export interface LoanApplication {
   id: string;
   memberId: string;
+  societyId: string; // Which society this loan belongs to
   amount: number;
   purpose: string;
   duration: number; // in months
@@ -104,6 +105,7 @@ export interface LoanApplication {
 /** Tracks a guarantor's approval/decline for a loan or membership application */
 export interface GuarantorRequest {
   id: string;
+  societyId: string;            // Which society this request belongs to
   type: 'loan' | 'membership';
   applicationId: string;        // LoanApplication.id or MembershipApplication.id
   applicantName: string;        // display name for the guarantor prompt
@@ -116,6 +118,7 @@ export interface GuarantorRequest {
 /** Broadcast message sent by admin to all members */
 export interface BroadcastMessage {
   id: string;
+  societyId: string;
   subject: string;
   body: string;
   sentAt: Date;
@@ -126,6 +129,7 @@ export interface BroadcastMessage {
 /** Levy or due imposed on one or more members */
 export interface Levy {
   id: string;
+  societyId: string;
   description: string;
   amount: number;
   imposedAt: Date;
@@ -138,6 +142,7 @@ export interface Levy {
 export interface Transaction {
   id: string;
   memberId: string;
+  societyId: string; // Which society this transaction belongs to
   type: 'shares_deposit' | 'shares_withdrawal' | 'savings_deposit' | 'savings_withdrawal' | 'loan_disbursement' | 'loan_payment' | 'interest_charge' | 'interest_payment' | 'dues_payment' | 'profile_update';
   amount: number;
   description: string;

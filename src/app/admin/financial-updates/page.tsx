@@ -13,8 +13,10 @@ import { db } from '@/lib/mock-data';
 import { getLoanSummary, formatNaira, processLoanPayment } from '@/lib/loan-utils';
 import { Member } from '@/types';
 import { ArrowRight, TrendingUp, TrendingDown, PiggyBank, Landmark, CreditCard, BadgeDollarSign } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function FinancialUpdatesPage() {
+  const { user } = useAuth();
   const [members, setMembers] = useState<Member[]>([]);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
@@ -49,10 +51,15 @@ export default function FinancialUpdatesPage() {
     dues: { old: number; delta: number; new: number };
   } | null>(null);
 
-  useEffect(() => { loadMembers(); }, []);
+  useEffect(() => {
+    if (user?.societyId) {
+      loadMembers();
+    }
+  }, [user]);
 
   const loadMembers = async () => {
-    const allMembers = await db.getMembers();
+    if (!user?.societyId) return;
+    const allMembers = await db.getMembers(user.societyId);
     setMembers(allMembers);
   };
 
@@ -173,6 +180,7 @@ export default function FinancialUpdatesPage() {
         if (pendingUpdate.shares.delta !== 0) {
           await db.createTransaction({
             memberId: selectedMember.id,
+            societyId: selectedMember.societyId,
             type: pendingUpdate.shares.delta > 0 ? 'shares_deposit' : 'shares_withdrawal',
             amount: Math.abs(pendingUpdate.shares.delta),
             description: `Admin adjustment: ${deltaForm.updateReason}`,
@@ -186,6 +194,7 @@ export default function FinancialUpdatesPage() {
         if (pendingUpdate.savings.delta !== 0) {
           await db.createTransaction({
             memberId: selectedMember.id,
+            societyId: selectedMember.societyId,
             type: pendingUpdate.savings.delta > 0 ? 'savings_deposit' : 'savings_withdrawal',
             amount: Math.abs(pendingUpdate.savings.delta),
             description: `Admin adjustment: ${deltaForm.updateReason}`,
@@ -200,6 +209,7 @@ export default function FinancialUpdatesPage() {
         if (pendingUpdate.loan.delta < 0) {
           await db.createTransaction({
             memberId: selectedMember.id,
+            societyId: selectedMember.societyId,
             type: 'loan_payment',
             amount: Math.abs(pendingUpdate.loan.delta),
             description: `Payment: ${deltaForm.updateReason}`,
@@ -214,6 +224,7 @@ export default function FinancialUpdatesPage() {
         if (pendingUpdate.interest.delta < 0) {
           await db.createTransaction({
             memberId: selectedMember.id,
+            societyId: selectedMember.societyId,
             type: 'interest_payment',
             amount: Math.abs(pendingUpdate.interest.delta),
             description: `Payment: ${deltaForm.updateReason}`,
@@ -228,6 +239,7 @@ export default function FinancialUpdatesPage() {
         if (pendingUpdate.dues.delta < 0) {
           await db.createTransaction({
             memberId: selectedMember.id,
+            societyId: selectedMember.societyId,
             type: 'dues_payment',
             amount: Math.abs(pendingUpdate.dues.delta),
             description: `Payment: ${deltaForm.updateReason}`,

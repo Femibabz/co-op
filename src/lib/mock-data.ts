@@ -28,6 +28,21 @@ export const mockSocieties: Society[] = [
     totalLoans: 75000,
     totalShares: 125000,
   },
+  {
+    id: 'soc2',
+    name: 'Unity Cooperative Society',
+    registrationNumber: 'UNI-2024-001',
+    address: '456 Unity Way, Abuja',
+    phone: '+234-900-987-6543',
+    email: 'admin@unity.com',
+    createdAt: new Date('2024-02-01'),
+    status: 'active',
+    adminUserId: '4',
+    memberCount: 1,
+    totalSavings: 50000,
+    totalLoans: 0,
+    totalShares: 25000,
+  },
 ];
 
 // Mock users
@@ -65,6 +80,24 @@ export const mockUsers: User[] = [
     role: 'member',
     createdAt: new Date('2024-02-15'),
     societyId: 'soc1',
+    isActive: true,
+  },
+  {
+    id: '4',
+    email: 'admin@unity.com',
+    password: 'admin123',
+    role: 'admin',
+    createdAt: new Date('2024-02-01'),
+    societyId: 'soc2',
+    isActive: true,
+  },
+  {
+    id: '5',
+    email: 'bob.brown@email.com',
+    password: 'member123',
+    role: 'member',
+    createdAt: new Date('2024-03-01'),
+    societyId: 'soc2',
     isActive: true,
   },
 ];
@@ -296,6 +329,24 @@ export const mockMembers: Member[] = [
     interestBalance: 0,
     societyDues: 0,
   },
+  {
+    id: 'm3',
+    userId: '5',
+    societyId: 'soc2',
+    memberNumber: 'UNI001',
+    firstName: 'Bob',
+    lastName: 'Brown',
+    email: 'bob.brown@email.com',
+    phone: '+234-701-111-2222',
+    address: '789 Garki, Abuja',
+    dateJoined: new Date('2024-03-01'),
+    status: 'active',
+    sharesBalance: 25000,
+    savingsBalance: 50000,
+    loanBalance: 0,
+    interestBalance: 0,
+    societyDues: 0,
+  },
 ];
 
 // Mock transactions for the last 12 months
@@ -311,6 +362,7 @@ export const mockTransactions: Transaction[] = [
     balanceAfter: 25000,
     referenceNumber: 'SH001',
     processedBy: 'admin',
+    societyId: 'soc1',
   },
   {
     id: 't2',
@@ -322,6 +374,7 @@ export const mockTransactions: Transaction[] = [
     balanceAfter: 100000,
     referenceNumber: 'SV001',
     processedBy: 'admin',
+    societyId: 'soc1',
   },
   {
     id: 't3',
@@ -333,6 +386,7 @@ export const mockTransactions: Transaction[] = [
     balanceAfter: 100000,
     referenceNumber: 'LN001',
     processedBy: 'admin',
+    societyId: 'soc1',
   },
   {
     id: 't4',
@@ -343,6 +397,7 @@ export const mockTransactions: Transaction[] = [
     date: new Date('2024-02-15'),
     balanceAfter: 92500,
     referenceNumber: 'LP001',
+    societyId: 'soc1',
   },
   {
     id: 't5',
@@ -353,6 +408,7 @@ export const mockTransactions: Transaction[] = [
     date: new Date('2024-03-15'),
     balanceAfter: 85000,
     referenceNumber: 'LP002',
+    societyId: 'soc1',
   },
   {
     id: 't6',
@@ -364,6 +420,7 @@ export const mockTransactions: Transaction[] = [
     balanceAfter: 6250,
     referenceNumber: 'INT001',
     processedBy: 'system',
+    societyId: 'soc1',
   },
   {
     id: 't7',
@@ -375,6 +432,7 @@ export const mockTransactions: Transaction[] = [
     balanceAfter: 50000,
     referenceNumber: 'SH002',
     processedBy: 'admin',
+    societyId: 'soc1',
   },
   {
     id: 't8',
@@ -385,6 +443,7 @@ export const mockTransactions: Transaction[] = [
     date: new Date('2024-03-01'),
     balanceAfter: 150000,
     referenceNumber: 'SV002',
+    societyId: 'soc1',
   },
 
   // Jane Smith transactions
@@ -398,6 +457,7 @@ export const mockTransactions: Transaction[] = [
     balanceAfter: 50000,
     referenceNumber: 'SH003',
     processedBy: 'admin',
+    societyId: 'soc1',
   },
   {
     id: 't10',
@@ -409,6 +469,7 @@ export const mockTransactions: Transaction[] = [
     balanceAfter: 150000,
     referenceNumber: 'SV003',
     processedBy: 'admin',
+    societyId: 'soc1',
   },
   {
     id: 't11',
@@ -420,6 +481,7 @@ export const mockTransactions: Transaction[] = [
     balanceAfter: 75000,
     referenceNumber: 'SH004',
     processedBy: 'admin',
+    societyId: 'soc1',
   },
   {
     id: 't12',
@@ -430,6 +492,7 @@ export const mockTransactions: Transaction[] = [
     date: new Date('2024-03-01'),
     balanceAfter: 200000,
     referenceNumber: 'SV004',
+    societyId: 'soc1',
   },
 ];
 
@@ -477,6 +540,7 @@ export const mockLoanApplications: LoanApplication[] = [
     duration: 12,
     status: 'pending',
     appliedAt: new Date('2024-03-10'),
+    societyId: 'soc1',
   },
   {
     id: 'loan2',
@@ -486,6 +550,7 @@ export const mockLoanApplications: LoanApplication[] = [
     duration: 6,
     status: 'pending',
     appliedAt: new Date('2024-03-08'),
+    societyId: 'soc1',
   },
 ];
 
@@ -506,14 +571,14 @@ export class MockDatabase {
 
   private loadFromStorage() {
     if (typeof window !== 'undefined') {
-      const storedSocieties = localStorage.getItem('osuolale_societies');
-      const storedUsers = localStorage.getItem('osuolale_users');
-      const storedMembers = localStorage.getItem('osuolale_members');
-      const storedApplications = localStorage.getItem('osuolale_applications');
-      const storedLoanApplications = localStorage.getItem('osuolale_loan_applications');
-      const storedTransactions = localStorage.getItem('osuolale_transactions');
-      const storedByLaws = localStorage.getItem('osuolale_bylaws');
-      const storedLoginSessions = localStorage.getItem('osuolale_login_sessions');
+      const storedSocieties = localStorage.getItem('coopkonnect_societies');
+      const storedUsers = localStorage.getItem('coopkonnect_users');
+      const storedMembers = localStorage.getItem('coopkonnect_members');
+      const storedApplications = localStorage.getItem('coopkonnect_applications');
+      const storedLoanApplications = localStorage.getItem('coopkonnect_loan_applications');
+      const storedTransactions = localStorage.getItem('coopkonnect_transactions');
+      const storedByLaws = localStorage.getItem('coopkonnect_bylaws');
+      const storedLoginSessions = localStorage.getItem('coopkonnect_login_sessions');
 
       this.societies = storedSocieties ? JSON.parse(storedSocieties) : [...mockSocieties];
       this.users = storedUsers ? JSON.parse(storedUsers) : [...mockUsers];
@@ -586,14 +651,14 @@ export class MockDatabase {
 
   private saveToStorage() {
     if (typeof window !== 'undefined') {
-      localStorage.setItem('osuolale_societies', JSON.stringify(this.societies));
-      localStorage.setItem('osuolale_users', JSON.stringify(this.users));
-      localStorage.setItem('osuolale_members', JSON.stringify(this.members));
-      localStorage.setItem('osuolale_applications', JSON.stringify(this.applications));
-      localStorage.setItem('osuolale_loan_applications', JSON.stringify(this.loanApplications));
-      localStorage.setItem('osuolale_transactions', JSON.stringify(this.transactions));
-      localStorage.setItem('osuolale_bylaws', JSON.stringify(this.byLaws));
-      localStorage.setItem('osuolale_login_sessions', JSON.stringify(this.loginSessions));
+      localStorage.setItem('coopkonnect_societies', JSON.stringify(this.societies));
+      localStorage.setItem('coopkonnect_users', JSON.stringify(this.users));
+      localStorage.setItem('coopkonnect_members', JSON.stringify(this.members));
+      localStorage.setItem('coopkonnect_applications', JSON.stringify(this.applications));
+      localStorage.setItem('coopkonnect_loan_applications', JSON.stringify(this.loanApplications));
+      localStorage.setItem('coopkonnect_transactions', JSON.stringify(this.transactions));
+      localStorage.setItem('coopkonnect_bylaws', JSON.stringify(this.byLaws));
+      localStorage.setItem('coopkonnect_login_sessions', JSON.stringify(this.loginSessions));
     }
   }
 
@@ -609,12 +674,13 @@ export class MockDatabase {
           .single();
 
         if (error) {
-          // User not found is not an error, just return undefined
           if (error.code === 'PGRST116') {
-            return undefined;
+            // User not found in Supabase is not a fatal error, 
+            // fall through to check localStorage fallback
+          } else {
+            console.warn('Supabase fetch error:', error);
+            throw error;
           }
-          console.warn('Supabase fetch error:', error);
-          throw error;
         }
 
         if (data) {
@@ -638,14 +704,32 @@ export class MockDatabase {
       }
     }
 
-    // Fallback to localStorage
-    return this.users.find(user => user.email === email);
+    // Fallback to localStorage - find the MOST RECENT user with this email
+    // This handles cases where old stale records might exist in localStorage
+    return [...this.users].reverse().find(user => user.email === email);
   }
 
   async createUser(user: Omit<User, 'id' | 'createdAt'>): Promise<User> {
+    // 0. DRY RUN: Check if user with this email already exists locally or in Supabase
+    // This is the CRITICAL fix for the "Data Breach" scenario
+    const existingLocalUser = this.users.find(u => u.email === user.email);
+    if (existingLocalUser) {
+      throw new Error(`A user with email ${user.email} already exists (local). Use a unique email.`);
+    }
+
     // Try Supabase first
     if (isSupabaseConfigured()) {
       try {
+        const { data: existingSupaUser } = await supabase
+          .from('users')
+          .select('id')
+          .eq('email', user.email)
+          .maybeSingle();
+
+        if (existingSupaUser) {
+          throw new Error(`A user with email ${user.email} already exists (cloud). Use a unique email.`);
+        }
+
         const { data, error } = await supabase
           .from('users')
           .insert([{
@@ -660,34 +744,36 @@ export class MockDatabase {
           .single();
 
         if (error) {
-          console.warn('Supabase insert error:', error);
+          console.warn('Supabase insert error (users):', error.message, error.code);
+          if (error.code.startsWith('23') || error.code.startsWith('42') || error.code.startsWith('P')) {
+            throw new Error(`Database error creating user: ${error.message} (${error.code})`);
+          }
           throw error;
         }
 
-        // Convert Supabase response to User format
-        const newUser: User = {
-          id: data.id,
-          email: data.email,
-          password: data.password,
-          role: data.role,
-          createdAt: new Date(data.created_at),
-          societyId: data.society_id || undefined,
-          isFirstLogin: data.is_first_login,
-          isActive: data.is_active ?? true
-        };
+        if (data) {
+          const newUser: User = {
+            id: data.id,
+            email: data.email,
+            password: data.password,
+            role: data.role,
+            createdAt: new Date(data.created_at),
+            societyId: data.society_id || undefined,
+            isFirstLogin: data.is_first_login,
+            isActive: data.is_active ?? true
+          };
 
-        // Also save to localStorage as backup
-        this.users.push(newUser);
-        this.saveToStorage();
-
-        return newUser;
-      } catch (error) {
+          this.users.push(newUser);
+          this.saveToStorage();
+          return newUser;
+        }
+      } catch (error: any) {
         console.warn('Error creating user in Supabase:', error);
-        // Fall through to localStorage fallback
+        throw error;
       }
     }
 
-    // Fallback to localStorage if Supabase is not configured or fails
+    // Fallback to localStorage
     const newUser: User = {
       ...user,
       id: Date.now().toString(),
@@ -696,6 +782,108 @@ export class MockDatabase {
     this.users.push(newUser);
     this.saveToStorage();
     return newUser;
+  }
+
+  async createSociety(data: Omit<Society, 'id' | 'createdAt' | 'adminUserId' | 'memberCount' | 'totalSavings' | 'totalLoans' | 'totalShares' | 'status'>, adminEmail: string): Promise<Society> {
+    // Pre-check if society with same email or reg exists
+    if (isSupabaseConfigured()) {
+      try {
+        const { data: existingSoc } = await supabase
+          .from('societies')
+          .select('id, email, registration_number')
+          .or(`email.eq.${data.email},registration_number.eq.${data.registrationNumber}`)
+          .maybeSingle();
+
+        if (existingSoc) {
+          if (existingSoc.email === data.email) {
+            throw new Error(`A society with official email ${data.email} already exists.`);
+          }
+          if (existingSoc.registration_number === data.registrationNumber) {
+            throw new Error(`A society with registration number ${data.registrationNumber} already exists.`);
+          }
+        }
+      } catch (err: any) {
+        if (err.message && err.message.includes('already exists')) throw err;
+        console.warn('Supabase dry-run check failed:', err);
+      }
+    }
+
+    // Pre-check if ADMIN user already exists by email
+    const existingAdmin = await this.findUserByEmail(adminEmail);
+    if (existingAdmin) {
+      throw new Error(`The admin email ${adminEmail} is already in use by another account.`);
+    }
+
+    const societyId = `soc${Date.now()}`;
+
+    // 1. Insert society record first in Supabase to resolve circular dependency
+    // This allows the admin user to be created with a valid society_id reference
+    if (isSupabaseConfigured()) {
+      try {
+        const { error } = await supabase.from('societies').insert([{
+          id: societyId,
+          name: data.name,
+          registration_number: data.registrationNumber,
+          address: data.address,
+          phone: data.phone,
+          email: data.email,
+          status: 'active',
+          admin_user_id: null // Set to null initially
+        }]);
+
+        if (error) {
+          console.warn('Supabase society initial insert error:', error);
+          throw new Error(`Failed to initialize society in database: ${error.message} (${error.code})`);
+        }
+      } catch (err: any) {
+        console.warn('Supabase society initial insert exception:', err);
+        throw err;
+      }
+    }
+
+    // 2. Create the admin user for this society
+    const adminUser = await this.createUser({
+      email: adminEmail,
+      password: 'admin123', // Default admin password
+      role: 'admin',
+      societyId,
+      isFirstLogin: true,
+      isActive: true
+    });
+
+    // 3. Update the society record with the adminUserId in Supabase
+    if (isSupabaseConfigured()) {
+      try {
+        const { error } = await supabase
+          .from('societies')
+          .update({ admin_user_id: adminUser.id })
+          .eq('id', societyId);
+
+        if (error) {
+          console.warn('Supabase society update error (admin_user_id):', error);
+          // Non-fatal if user and society are both created, but inconsistent pointers
+        }
+      } catch (err) {
+        console.warn('Supabase society update exception (admin_user_id):', err);
+      }
+    }
+
+    // 4. Create the full local society object
+    const newSociety: Society = {
+      ...data,
+      id: societyId,
+      adminUserId: adminUser.id,
+      createdAt: new Date(),
+      status: 'active',
+      memberCount: 0,
+      totalSavings: 0,
+      totalLoans: 0,
+      totalShares: 0
+    };
+
+    this.societies.push(newSociety);
+    this.saveToStorage();
+    return newSociety;
   }
 
   updateUser(id: string, updates: Partial<User>): User | undefined {
@@ -743,7 +931,6 @@ export class MockDatabase {
         }
       } catch (error) {
         console.warn('Error updating password in Supabase:', error);
-        // Fall through to localStorage fallback
       }
     }
 
@@ -762,14 +949,20 @@ export class MockDatabase {
   }
 
   // Member methods
-  async getMembers(): Promise<Member[]> {
+  async getMembers(societyId?: string): Promise<Member[]> {
     // Try Supabase first
     if (isSupabaseConfigured()) {
       try {
-        const { data, error } = await supabase
+        let query = supabase
           .from('members')
           .select('*')
           .order('date_joined', { ascending: false });
+
+        if (societyId) {
+          query = query.eq('society_id', societyId);
+        }
+
+        const { data, error } = await query;
 
         if (error) {
           console.warn('Supabase fetch error:', error);
@@ -820,7 +1013,10 @@ export class MockDatabase {
     }
 
     // Fallback to localStorage — auto-apply pending monthly interest
-    const members = [...this.members];
+    let members = [...this.members];
+    if (societyId) {
+      members = members.filter(m => m.societyId === societyId);
+    }
     const updatedMembers = await this.autoCalculateInterestForMembers(members);
     return updatedMembers;
   }
@@ -837,10 +1033,11 @@ export class MockDatabase {
 
         if (error) {
           if (error.code === 'PGRST116') {
-            return undefined;
+            // Not found in Supabase, fall through to localStorage
+          } else {
+            console.warn('Supabase fetch error:', error);
+            throw error;
           }
-          console.warn('Supabase fetch error:', error);
-          throw error;
         }
 
         if (data) {
@@ -900,10 +1097,11 @@ export class MockDatabase {
 
         if (error) {
           if (error.code === 'PGRST116') {
-            return undefined;
+            // Not found in Supabase, fall through to localStorage
+          } else {
+            console.warn('Supabase fetch error:', error);
+            throw error;
           }
-          console.warn('Supabase fetch error:', error);
-          throw error;
         }
 
         if (data) {
@@ -1147,14 +1345,20 @@ export class MockDatabase {
   }
 
   // Application methods
-  async getApplications(): Promise<MembershipApplication[]> {
+  async getApplications(societyId?: string): Promise<MembershipApplication[]> {
     // Try Supabase first
     if (isSupabaseConfigured()) {
       try {
-        const { data, error } = await supabase
+        let query = supabase
           .from('membership_applications')
           .select('*')
           .order('applied_at', { ascending: false });
+
+        if (societyId) {
+          query = query.eq('society_id', societyId);
+        }
+
+        const { data, error } = await query;
 
         if (error) {
           console.warn('Supabase fetch error:', error);
@@ -1200,6 +1404,9 @@ export class MockDatabase {
     }
 
     // Fallback to localStorage
+    if (societyId) {
+      return [...this.applications].filter(app => app.societyId === societyId);
+    }
     return [...this.applications];
   }
 
@@ -1355,6 +1562,7 @@ export class MockDatabase {
         const guarantorIds = [data.guarantor_id1, data.guarantor_id2].filter(Boolean) as string[];
         for (const guarantorId of guarantorIds) {
           await this.createGuarantorRequest({
+            societyId: data.society_id,
             type: 'membership',
             applicationId: data.id,
             applicantName: `${data.first_name} ${data.last_name}`,
@@ -1385,8 +1593,8 @@ export class MockDatabase {
     // Create guarantor requests for this application
     if (application.guarantorIds && application.guarantorIds.length > 0) {
       for (const guarantorId of application.guarantorIds) {
-        // Note: This will now call the new createGuarantorRequest which handles Supabase
         await this.createGuarantorRequest({
+          societyId: newApplication.societyId,
           type: 'membership',
           applicationId: newApplication.id,
           applicantName: `${newApplication.firstName} ${newApplication.lastName}`,
@@ -1402,14 +1610,20 @@ export class MockDatabase {
   }
 
   // Loan application methods
-  async getLoanApplications(): Promise<LoanApplication[]> {
+  async getLoanApplications(societyId?: string): Promise<LoanApplication[]> {
     // Try Supabase first
     if (isSupabaseConfigured()) {
       try {
-        const { data, error } = await supabase
+        let query = supabase
           .from('loan_applications')
           .select('*')
           .order('applied_at', { ascending: false });
+
+        if (societyId) {
+          query = query.eq('society_id', societyId);
+        }
+
+        const { data, error } = await query;
 
         if (error) {
           console.warn('Supabase fetch error:', error);
@@ -1423,6 +1637,7 @@ export class MockDatabase {
             return {
               id: loan.id,
               memberId: loan.member_id || 'N/A',
+              societyId: loan.society_id || 'N/A',
               amount: loan.amount || 0,
               purpose: loan.purpose || 'N/A',
               duration: loan.duration || 0,
@@ -1448,6 +1663,9 @@ export class MockDatabase {
     }
 
     // Fallback to localStorage
+    if (societyId) {
+      return this.loanApplications.filter(l => l.societyId === societyId);
+    }
     return [...this.loanApplications];
   }
 
@@ -1473,6 +1691,7 @@ export class MockDatabase {
             return {
               id: loan.id,
               memberId: loan.member_id || 'N/A',
+              societyId: loan.society_id || 'N/A',
               amount: loan.amount || 0,
               purpose: loan.purpose || 'N/A',
               duration: loan.duration || 0,
@@ -1528,6 +1747,7 @@ export class MockDatabase {
           const updatedLoanApplication: LoanApplication = {
             id: data.id,
             memberId: data.member_id,
+            societyId: data.society_id,
             amount: data.amount,
             purpose: data.purpose,
             duration: data.duration,
@@ -1576,6 +1796,7 @@ export class MockDatabase {
           .from('loan_applications')
           .insert([{
             member_id: application.memberId,
+            society_id: application.societyId,
             amount: application.amount,
             purpose: application.purpose,
             duration: application.duration,
@@ -1595,6 +1816,7 @@ export class MockDatabase {
         const newLoanApplication: LoanApplication = {
           id: data.id,
           memberId: data.member_id,
+          societyId: data.society_id,
           amount: data.amount,
           purpose: data.purpose,
           duration: data.duration,
@@ -1617,6 +1839,7 @@ export class MockDatabase {
 
         for (const guarantorId of guarantorIds) {
           await this.createGuarantorRequest({
+            societyId: data.society_id,
             type: 'loan',
             applicationId: data.id,
             applicantName,
@@ -1647,6 +1870,7 @@ export class MockDatabase {
     const guarantorIds = [application.guarantor1Id, application.guarantor2Id].filter(Boolean) as string[];
     for (const guarantorId of guarantorIds) {
       await this.createGuarantorRequest({
+        societyId: newApplication.societyId,
         type: 'loan',
         applicationId: newApplication.id,
         applicantName: `Member ${newApplication.memberId}`,
@@ -1661,14 +1885,20 @@ export class MockDatabase {
   }
 
   // Transaction methods
-  async getTransactions(): Promise<Transaction[]> {
+  async getTransactions(societyId?: string): Promise<Transaction[]> {
     // Try Supabase first
     if (isSupabaseConfigured()) {
       try {
-        const { data, error } = await supabase
+        let query = supabase
           .from('transactions')
           .select('*')
           .order('date', { ascending: false });
+
+        if (societyId) {
+          query = query.eq('society_id', societyId);
+        }
+
+        const { data, error } = await query;
 
         if (error) {
           console.warn('Supabase fetch error:', error);
@@ -1680,6 +1910,7 @@ export class MockDatabase {
           const transactions: Transaction[] = data.map(t => ({
             id: t.id,
             memberId: t.member_id,
+            societyId: t.society_id || 'N/A',
             type: t.type,
             amount: t.amount,
             description: t.description,
@@ -1698,6 +1929,9 @@ export class MockDatabase {
     }
 
     // Fallback to localStorage
+    if (societyId) {
+      return this.transactions.filter(t => t.societyId === societyId);
+    }
     return [...this.transactions];
   }
 
@@ -1725,6 +1959,7 @@ export class MockDatabase {
           const transactions: Transaction[] = data.map(t => ({
             id: t.id,
             memberId: t.member_id,
+            societyId: t.society_id || 'N/A',
             type: t.type,
             amount: t.amount,
             description: t.description,
@@ -1759,6 +1994,7 @@ export class MockDatabase {
           .from('transactions')
           .insert([{
             member_id: transaction.memberId,
+            society_id: transaction.societyId,
             type: transaction.type,
             amount: transaction.amount,
             description: transaction.description,
@@ -1779,6 +2015,7 @@ export class MockDatabase {
         const newTransaction: Transaction = {
           id: data.id,
           memberId: data.member_id,
+          societyId: data.society_id,
           type: data.type,
           amount: data.amount,
           description: data.description,
@@ -1810,19 +2047,29 @@ export class MockDatabase {
   }
 
   // By-laws methods
-  getByLaws(): ByLaw[] {
-    return [...this.byLaws].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+  getByLaws(societyId?: string): ByLaw[] {
+    let results = [...this.byLaws];
+    if (societyId) {
+      results = results.filter(bylaw => bylaw.societyId === societyId);
+    }
+    return results.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
   }
 
-  async getActiveByLaws(): Promise<ByLaw[]> {
+  async getActiveByLaws(societyId?: string): Promise<ByLaw[]> {
     // Try Supabase first
     if (isSupabaseConfigured()) {
       try {
-        const { data, error } = await supabase
+        let query = supabase
           .from('bylaws')
           .select('*')
           .eq('is_active', true)
           .order('updated_at', { ascending: false });
+
+        if (societyId) {
+          query = query.eq('society_id', societyId);
+        }
+
+        const { data, error } = await query;
 
         if (error) {
           console.warn('Supabase fetch error:', error);
@@ -1843,13 +2090,9 @@ export class MockDatabase {
             isActive: bylaw.is_active
           }));
 
-          // Update localStorage with Supabase data
-          this.byLaws = bylaws;
-          this.saveToStorage();
-
           return bylaws;
         } else {
-          console.warn('No bylaws found in Supabase. Visit /seed-bylaws to seed the database.');
+          console.warn('No bylaws found in Supabase.');
         }
       } catch (error) {
         console.warn('Error fetching active bylaws from Supabase:', error);
@@ -1858,25 +2101,31 @@ export class MockDatabase {
     }
 
     // Fallback to localStorage
-    const localBylaws = this.byLaws
-      .filter(bylaw => bylaw.isActive)
-      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+    let localBylaws = this.byLaws.filter(bylaw => bylaw.isActive);
+
+    if (societyId) {
+      localBylaws = localBylaws.filter(bylaw => bylaw.societyId === societyId);
+    }
 
     // If no bylaws in localStorage, initialize with mock data
     if (localBylaws.length === 0) {
       console.warn('No bylaws in localStorage. Initializing with mock data.');
-      this.byLaws = [...mockByLaws];
-      this.saveToStorage();
-      return mockByLaws.filter(bylaw => bylaw.isActive);
+      // When initializing with mock data, we should also filter by societyId if provided
+      if (societyId) {
+        return [...mockByLaws].filter(bylaw => bylaw.isActive && bylaw.societyId === societyId);
+      }
+      return [...mockByLaws].filter(bylaw => bylaw.isActive);
     }
 
-    return localBylaws;
+    return localBylaws.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
   }
 
-  getByLawsByCategory(category: string): ByLaw[] {
-    return this.byLaws
-      .filter(bylaw => bylaw.category === category && bylaw.isActive)
-      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+  getByLawsByCategory(category: string, societyId?: string): ByLaw[] {
+    let results = this.byLaws.filter(bylaw => bylaw.category === category && bylaw.isActive);
+    if (societyId) {
+      results = results.filter(bylaw => bylaw.societyId === societyId);
+    }
+    return results.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
   }
 
   getByLawById(id: string): ByLaw | undefined {
@@ -2062,20 +2311,114 @@ export class MockDatabase {
   }
 
   // Super Admin methods - Platform-wide management
-  getAllSocieties(): Society[] {
+  async getAllSocieties(): Promise<Society[]> {
+    // Try Supabase first
+    if (isSupabaseConfigured()) {
+      try {
+        const { data, error } = await supabase
+          .from('societies')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.warn('Supabase fetch error:', error);
+          throw error;
+        }
+
+        if (data) {
+          // Convert Supabase response to Society format
+          return data.map(soc => ({
+            id: soc.id,
+            name: soc.name,
+            registrationNumber: soc.registration_number,
+            address: soc.address,
+            phone: soc.phone,
+            email: soc.email,
+            adminUserId: soc.admin_user_id,
+            createdAt: new Date(soc.created_at),
+            status: soc.status || 'active',
+            memberCount: soc.member_count || 0,
+            totalSavings: soc.total_savings || 0,
+            totalLoans: soc.total_loans || 0,
+            totalShares: soc.total_shares || 0
+          }));
+        }
+      } catch (error) {
+        console.warn('Error fetching societies from Supabase:', error);
+        // Fall through to localStorage fallback
+      }
+    }
+
     return [...this.societies].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
 
-  getSocietyById(id: string): Society | undefined {
+  async getSocietyById(id: string): Promise<Society | undefined> {
+    // Try Supabase first
+    if (isSupabaseConfigured()) {
+      try {
+        const { data, error } = await supabase
+          .from('societies')
+          .select('*')
+          .eq('id', id)
+          .maybeSingle();
+
+        if (error) {
+          console.warn('Supabase fetch error:', error);
+          throw error;
+        }
+
+        if (data) {
+          return {
+            id: data.id,
+            name: data.name,
+            registrationNumber: data.registration_number,
+            address: data.address,
+            phone: data.phone,
+            email: data.email,
+            adminUserId: data.admin_user_id,
+            createdAt: new Date(data.created_at),
+            status: data.status || 'active',
+            memberCount: data.member_count || 0,
+            totalSavings: data.total_savings || 0,
+            totalLoans: data.total_loans || 0,
+            totalShares: data.total_shares || 0
+          };
+        }
+      } catch (error) {
+        console.warn('Error fetching society by ID from Supabase:', error);
+        // Fall through to localStorage fallback
+      }
+    }
+
     return this.societies.find(soc => soc.id === id);
   }
 
-  getAllUsers(): User[] {
+  async getAllUsers(): Promise<User[]> {
+    // Try Supabase first if needed, for now use local
+    if (isSupabaseConfigured()) {
+      try {
+        const { data, error } = await supabase.from('users').select('*');
+        if (!error && data) {
+          return data.map(u => ({
+            id: u.id,
+            email: u.email,
+            password: u.password,
+            role: u.role,
+            createdAt: new Date(u.created_at),
+            societyId: u.society_id || undefined,
+            isFirstLogin: u.is_first_login,
+            isActive: u.is_active ?? true
+          }));
+        }
+      } catch (err) {
+        console.warn('Supabase users fetch error:', err);
+      }
+    }
     return [...this.users];
   }
 
-  getAllMembers(): Member[] {
-    return [...this.members];
+  async getAllMembers(): Promise<Member[]> {
+    return this.getMembers();
   }
 
   getMembersBySociety(societyId: string): Member[] {
@@ -2086,76 +2429,37 @@ export class MockDatabase {
     return this.applications.filter(a => a.societyId === societyId);
   }
 
-  toggleUserActive(userId: string): boolean {
+  async toggleUserActive(userId: string): Promise<boolean> {
     const index = this.users.findIndex(user => user.id === userId);
     if (index !== -1) {
+      const newStatus = !this.users[index].isActive;
       this.users[index] = {
         ...this.users[index],
-        isActive: !this.users[index].isActive,
+        isActive: newStatus,
       };
+
+      if (isSupabaseConfigured()) {
+        try {
+          await supabase.from('users').update({ is_active: newStatus }).eq('id', userId);
+        } catch (err) {
+          console.warn('Supabase user status update error:', err);
+        }
+      }
+
       this.saveToStorage();
       return true;
     }
     return false;
   }
 
-  async createSociety(data: Omit<Society, 'id' | 'createdAt' | 'adminUserId' | 'memberCount' | 'totalSavings' | 'totalLoans' | 'totalShares' | 'status'>, adminEmail: string): Promise<Society> {
-    const societyId = `soc${Date.now()}`;
 
-    // 1. Create the admin user for this society
-    const adminUser = await this.createUser({
-      email: adminEmail,
-      password: 'admin123', // Default admin password
-      role: 'admin',
-      societyId,
-      isFirstLogin: true,
-      isActive: true
-    });
-
-    // 2. Create the society record
-    const newSociety: Society = {
-      ...data,
-      id: societyId,
-      adminUserId: adminUser.id,
-      createdAt: new Date(),
-      status: 'active',
-      memberCount: 0,
-      totalSavings: 0,
-      totalLoans: 0,
-      totalShares: 0
-    };
-
-    // 3. Save to Supabase if configured
-    if (isSupabaseConfigured()) {
-      try {
-        const { error } = await supabase.from('societies').insert([{
-          id: newSociety.id,
-          name: newSociety.name,
-          registration_number: newSociety.registrationNumber,
-          address: newSociety.address,
-          phone: newSociety.phone,
-          email: newSociety.email,
-          status: newSociety.status,
-          admin_user_id: newSociety.adminUserId
-        }]);
-        if (error) console.warn('Supabase society insert error:', error);
-      } catch (err) {
-        console.warn('Supabase society insert exception:', err);
-      }
-    }
-
-    this.societies.push(newSociety);
-    this.saveToStorage();
-    return newSociety;
-  }
-
-  async createMemberWithUser(data: Omit<Member, 'id' | 'userId' | 'memberNumber' | 'dateJoined' | 'status' | 'sharesBalance' | 'savingsBalance' | 'loanBalance' | 'interestBalance' | 'societyDues'>): Promise<Member> {
+  async createMemberWithUser(data: Omit<Member, 'id' | 'userId' | 'memberNumber' | 'dateJoined' | 'status' | 'loanBalance' | 'interestBalance' | 'societyDues'>): Promise<Member> {
     const userId = `u${Date.now()}_${Math.random().toString(36).slice(2, 5)}`;
 
     // 1. Create the user account
     const user = await this.createUser({
       email: data.email,
-      password: 'member123', // Specified default password
+      password: (data as any).password || 'member123', // Use provided password if any, else default
       role: 'member',
       societyId: data.societyId,
       isFirstLogin: true,
@@ -2163,16 +2467,15 @@ export class MockDatabase {
     });
 
     // 2. Create the member record
-    const memberId = `m${Date.now()}`;
     const newMember: Member = {
       ...data,
-      id: memberId,
+      id: '', // Will be set by Supabase
       userId: user.id,
-      memberNumber: `MEM-${Date.now().toString().slice(-6)}`,
+      memberNumber: (data as any).memberNumber || `MEM-${Date.now().toString().slice(-6)}`,
       dateJoined: new Date(),
       status: 'active',
-      sharesBalance: 0,
-      savingsBalance: 0,
+      sharesBalance: data.sharesBalance || 0,
+      savingsBalance: data.savingsBalance || 0,
       loanBalance: 0,
       interestBalance: 0,
       societyDues: 0
@@ -2181,8 +2484,7 @@ export class MockDatabase {
     // 3. Save member to Supabase
     if (isSupabaseConfigured()) {
       try {
-        const { error } = await supabase.from('members').insert([{
-          id: newMember.id,
+        const { data: supaMember, error } = await supabase.from('members').insert([{
           user_id: newMember.userId,
           society_id: newMember.societyId,
           member_number: newMember.memberNumber,
@@ -2190,12 +2492,32 @@ export class MockDatabase {
           last_name: newMember.lastName,
           email: newMember.email,
           phone: newMember.phone,
-          status: newMember.status
-        }]);
-        if (error) console.warn('Supabase member insert error:', error);
-      } catch (err) {
+          address: newMember.address,
+          status: newMember.status,
+          shares_balance: newMember.sharesBalance,
+          savings_balance: newMember.savingsBalance,
+          loan_balance: newMember.loanBalance,
+          interest_balance: newMember.interestBalance,
+          society_dues: newMember.societyDues,
+          date_joined: newMember.dateJoined.toISOString(),
+          occupation: newMember.occupation,
+          annual_income: newMember.annualIncome
+        }]).select().single();
+
+        if (error) {
+          console.warn('Supabase member insert error:', error);
+          throw new Error(`Failed to save member to database: ${error.message}`);
+        }
+
+        if (supaMember) {
+          newMember.id = supaMember.id;
+        }
+      } catch (err: any) {
         console.warn('Supabase member insert exception:', err);
+        throw err;
       }
+    } else {
+      newMember.id = `m${Date.now()}`;
     }
 
     this.members.push(newMember);
@@ -2218,9 +2540,14 @@ export class MockDatabase {
 
     if (isSupabaseConfigured()) {
       try {
-        await supabase.from('societies').update({ status }).eq('id', id);
-      } catch (err) {
-        console.warn('Supabase society status update error:', err);
+        const { error } = await supabase.from('societies').update({ status }).eq('id', id);
+        if (error) {
+          console.warn('Supabase society status update error:', error);
+          throw new Error(`Failed to update society status in database: ${error.message}`);
+        }
+      } catch (err: any) {
+        console.warn('Supabase society status update exception:', err);
+        throw err;
       }
     }
 
@@ -2261,6 +2588,7 @@ export class MockDatabase {
       // Record an interest_charge transaction
       await this.createTransaction({
         memberId: member.id,
+        societyId: member.societyId,
         type: 'interest_charge',
         amount: calculation.totalInterest,
         description: `Monthly interest — ${calculation.monthsToCalculate} month(s) @ ${calculation.breakdown[0]?.rate ?? '?'}%`,
@@ -2288,20 +2616,26 @@ export class MockDatabase {
     return updatedMembers;
   }
 
-  getPlatformStatistics() {
-    const activeSocieties = this.societies.filter(s => s.status === 'active').length;
-    const totalUsers = this.users.length;
-    const activeUsers = this.users.filter(u => u.isActive !== false).length;
-    const totalMembers = this.members.length;
-    const activeMembers = this.members.filter(m => m.status === 'active').length;
-    const totalSavings = this.members.reduce((sum, m) => sum + m.savingsBalance, 0);
-    const totalLoans = this.members.reduce((sum, m) => sum + m.loanBalance, 0);
-    const totalShares = this.members.reduce((sum, m) => sum + m.sharesBalance, 0);
-    const pendingApplications = this.applications.filter(a => a.status === 'pending').length;
+  async getPlatformStatistics() {
+    // Refresh local cache if possible, or just use what we have
+    const societies = await this.getAllSocieties();
+    const members = await this.getAllMembers();
+    const users = await this.getAllUsers();
+    const applications = await this.getApplications();
+
+    const activeSocieties = societies.filter(s => s.status === 'active').length;
+    const totalUsers = users.length;
+    const activeUsers = users.filter(u => u.isActive !== false).length;
+    const totalMembers = members.length;
+    const activeMembers = members.filter(m => m.status === 'active').length;
+    const totalSavings = members.reduce((sum, m) => sum + (m.savingsBalance || 0), 0);
+    const totalLoans = members.reduce((sum, m) => sum + (m.loanBalance || 0), 0);
+    const totalShares = members.reduce((sum, m) => sum + (m.sharesBalance || 0), 0);
+    const pendingApplications = applications.filter(a => a.status === 'pending').length;
 
     return {
       activeSocieties,
-      totalSocieties: this.societies.length,
+      totalSocieties: societies.length,
       totalUsers,
       activeUsers,
       totalMembers,
@@ -2339,6 +2673,7 @@ export class MockDatabase {
           .from('guarantor_requests')
           .insert([{
             id,
+            society_id: data.societyId,
             type: data.type,
             application_id: data.applicationId,
             applicant_name: data.applicantName,
@@ -2357,6 +2692,7 @@ export class MockDatabase {
         if (supabaseData) {
           const newReq: GuarantorRequest = {
             id: supabaseData.id,
+            societyId: supabaseData.society_id,
             type: supabaseData.type as 'loan' | 'membership',
             applicationId: supabaseData.application_id,
             applicantName: supabaseData.applicant_name,
@@ -2396,6 +2732,7 @@ export class MockDatabase {
         if (!error && data) {
           return data.map(r => ({
             id: r.id,
+            societyId: r.society_id,
             type: r.type as 'loan' | 'membership',
             applicationId: r.application_id,
             applicantName: r.applicant_name,
@@ -2426,6 +2763,7 @@ export class MockDatabase {
         if (!error && data) {
           return data.map(r => ({
             id: r.id,
+            societyId: r.society_id,
             type: r.type as 'loan' | 'membership',
             applicationId: r.application_id,
             applicantName: r.applicant_name,
@@ -2463,6 +2801,7 @@ export class MockDatabase {
         if (!error && data) {
           const updated: GuarantorRequest = {
             id: data.id,
+            societyId: data.society_id,
             type: data.type as 'loan' | 'membership',
             applicationId: data.application_id,
             applicantName: data.applicant_name,
@@ -2544,8 +2883,12 @@ export class MockDatabase {
     return msg;
   }
 
-  getBroadcastMessages(): BroadcastMessage[] {
-    return this.broadcastMessages
+  getBroadcastMessages(societyId?: string): BroadcastMessage[] {
+    let results = this.broadcastMessages;
+    if (societyId) {
+      results = results.filter(m => m.societyId === societyId);
+    }
+    return results
       .map(m => ({ ...m, sentAt: new Date(m.sentAt) }))
       .sort((a, b) => b.sentAt.getTime() - a.sentAt.getTime());
   }
@@ -2574,8 +2917,12 @@ export class MockDatabase {
     return levy;
   }
 
-  getLevies(): Levy[] {
-    return this.levies.map(l => ({ ...l, imposedAt: new Date(l.imposedAt) }));
+  getLevies(societyId?: string): Levy[] {
+    let results = this.levies;
+    if (societyId) {
+      results = results.filter(l => l.societyId === societyId);
+    }
+    return results.map(l => ({ ...l, imposedAt: new Date(l.imposedAt) }));
   }
 
   // ─── Member Status ─────────────────────────────────────────────────────────

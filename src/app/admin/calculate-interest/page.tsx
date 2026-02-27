@@ -10,8 +10,10 @@ import { db } from '@/lib/mock-data';
 import { calculateAccumulatedInterest, formatNaira, getCurrentInterestRate } from '@/lib/loan-utils';
 import { Member } from '@/types';
 import { AlertCircle, CheckCircle2, Calculator } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function CalculateInterestPage() {
+  const { user } = useAuth();
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [calculating, setCalculating] = useState(false);
@@ -19,12 +21,14 @@ export default function CalculateInterestPage() {
   const [interestPreview, setInterestPreview] = useState<Map<string, any>>(new Map());
 
   useEffect(() => {
-    loadMembers();
-  }, []);
+    if (user?.societyId) {
+      loadMembers();
+    }
+  }, [user]);
 
   const loadMembers = async () => {
     try {
-      const allMembers = await db.getMembers();
+      const allMembers = await db.getMembers(user?.societyId);
       const membersWithLoans = allMembers.filter(m => (m.loanBalance || 0) > 0);
       setMembers(membersWithLoans);
 
@@ -64,6 +68,7 @@ export default function CalculateInterestPage() {
           // Create transaction for interest charge
           await db.createTransaction({
             memberId: member.id,
+            societyId: member.societyId,
             type: 'interest_charge',
             amount: calculation.totalInterest,
             description: `Monthly interest charge - ${calculation.monthsToCalculate} month(s) at ${getCurrentInterestRate(member)}% per month`,

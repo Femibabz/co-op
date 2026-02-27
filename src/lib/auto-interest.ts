@@ -35,7 +35,7 @@ export async function autoCalculateInterest(member: Member): Promise<Member> {
   };
 
   // Persist to database (Supabase + localStorage)
-  await persistInterestCharge(member.id, result);
+  await persistInterestCharge(member.id, member.societyId, result);
 
   return updatedMember;
 }
@@ -68,6 +68,7 @@ export function getInterestCalculationSummary(member: Member) {
 
 async function persistInterestCharge(
   memberId: string,
+  societyId: string,
   calculation: { monthsToCalculate: number; totalInterest: number; newInterestBalance: number }
 ): Promise<void> {
   if (isSupabaseConfigured()) {
@@ -82,6 +83,7 @@ async function persistInterestCharge(
 
       await supabase.from('transactions').insert({
         member_id: memberId,
+        society_id: societyId,
         type: 'interest_charge',
         amount: calculation.totalInterest,
         description: `Monthly interest — ${calculation.monthsToCalculate} month(s)`,

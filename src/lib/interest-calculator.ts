@@ -63,6 +63,7 @@ export class InterestCalculator {
             const referenceNumber = `INT${Date.now()}-${member.id}`;
             await db.createTransaction({
               memberId: member.id,
+              societyId: member.societyId,
               type: 'interest_charge',
               amount: monthlyInterest,
               description: `Monthly interest charge (1.5% on loan balance)`,
