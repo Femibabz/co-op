@@ -37,20 +37,29 @@ export default function MemberByLawsPage() {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [isLoaded, setIsLoaded] = useState(false);
+  const [societyName, setSocietyName] = useState('the Cooperative Society');
 
   useEffect(() => {
-    const loadByLaws = async () => {
+    const loadData = async () => {
+      if (!user?.societyId) return;
       try {
-        const activeByLaws = await db.getActiveByLaws();
+        const [activeByLaws, society] = await Promise.all([
+          db.getActiveByLaws(user.societyId),
+          db.getSocietyById(user.societyId)
+        ]);
+        
         setByLaws(activeByLaws);
+        if (society) {
+          setSocietyName(society.name);
+        }
         setIsLoaded(true);
       } catch (err) {
-        console.error('Error loading by-laws:', err);
+        console.error('Error loading data:', err);
         setIsLoaded(true);
       }
     };
-    loadByLaws();
-  }, []);
+    if (user) loadData();
+  }, [user]);
 
   const getCategoryTheme = (category: string) => {
     switch (category) {
@@ -101,7 +110,7 @@ export default function MemberByLawsPage() {
           <p className="text-sm font-bold text-primary uppercase tracking-widest">Regulatory Framework</p>
           <h2 className="text-4xl font-extrabold text-slate-900 tracking-tight">Society By-Laws</h2>
           <p className="text-slate-500 max-w-2xl font-medium">
-            The fundamental principles and operational rules governing the Osuolale Cooperative Society.
+            The fundamental principles and operational rules governing {societyName}.
           </p>
         </div>
         <div className="flex items-center gap-4 bg-white/50 p-2 rounded-2xl border border-slate-200/60 backdrop-blur-sm">
@@ -126,8 +135,8 @@ export default function MemberByLawsPage() {
                 key={cat.id}
                 onClick={() => setSelectedCategory(cat.id)}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all text-sm group ${selectedCategory === cat.id
-                    ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-[1.02]'
-                    : 'text-slate-600 hover:bg-slate-100'
+                  ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-[1.02]'
+                  : 'text-slate-600 hover:bg-slate-100'
                   }`}
               >
                 <span className={`${selectedCategory === cat.id ? 'text-white' : 'text-slate-400 group-hover:text-primary'}`}>
@@ -253,7 +262,7 @@ export default function MemberByLawsPage() {
                         </div>
                         <div className="hidden sm:block">
                           <div className="p-2 border-2 border-slate-900 rounded-lg opacity-10 grayscale hover:opacity-100 transition-all cursor-default select-none">
-                            <p className="text-[8px] font-black text-slate-900 leading-none">OSUALALE</p>
+                            <p className="text-[8px] font-black text-slate-900 leading-none">{societyName.split(' ')[0].toUpperCase()}</p>
                             <p className="text-[8px] font-black text-slate-900 leading-none">OFFICIAL</p>
                           </div>
                         </div>

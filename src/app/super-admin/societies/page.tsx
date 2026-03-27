@@ -11,10 +11,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PlusCircle, ShieldAlert, UserPlus, Building2, Phone, Mail, MapPin, Hash, CheckCircle2 } from 'lucide-react';
 import { db } from '@/lib/mock-data';
-import { Society, Member } from '@/types';
+import { Society, Member, User } from '@/types';
 
 export default function SocietiesPage() {
   const [societies, setSocieties] = useState<Society[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
@@ -31,9 +32,12 @@ export default function SocietiesPage() {
     refreshData();
   }, []);
 
-  const refreshData = () => {
+  const refreshData = async () => {
     setIsRefreshing(true);
-    setSocieties(db.getAllSocieties());
+    const socs = await db.getAllSocieties();
+    const allUsers = await db.getAllUsers();
+    setSocieties(socs);
+    setUsers(allUsers);
     setIsRefreshing(false);
   };
 
@@ -52,8 +56,8 @@ export default function SocietiesPage() {
       setIsRegisterOpen(false);
       setNewSoc({ name: '', reg: '', addr: '', phone: '', email: '', adminEmail: '' });
       refreshData();
-    } catch (err) {
-      setStatusMsg({ type: 'error', text: 'Failed to create society.' });
+    } catch (err: any) {
+      setStatusMsg({ type: 'error', text: err.message || 'Failed to create society.' });
     }
   };
 
@@ -75,8 +79,8 @@ export default function SocietiesPage() {
       setIsAddMemberOpen(false);
       setNewMem({ firstName: '', lastName: '', email: '', phone: '' });
       refreshData();
-    } catch (err) {
-      setStatusMsg({ type: 'error', text: 'Failed to add member.' });
+    } catch (err: any) {
+      setStatusMsg({ type: 'error', text: err.message || 'Failed to add member.' });
     }
   };
 
@@ -133,22 +137,26 @@ export default function SocietiesPage() {
                   <Input id="reg" required value={newSoc.reg} onChange={e => setNewSoc({ ...newSoc, reg: e.target.value })} placeholder="OSU-2024-X" />
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="admin" className="font-bold text-primary flex items-center gap-1">
-                  Admin Email <Badge variant="outline" className="text-[10px] py-0">NEW ACCOUNT</Badge>
-                </Label>
-                <Input id="admin" type="email" required value={newSoc.adminEmail} onChange={e => setNewSoc({ ...newSoc, adminEmail: e.target.value })} placeholder="admin@society.com" />
-                <p className="text-[10px] text-slate-400 italic">Self-service password reset will be triggered. Default: admin123</p>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
                 <div className="space-y-2">
-                  <Label htmlFor="phone" className="font-bold">Official Phone</Label>
-                  <Input id="phone" value={newSoc.phone} onChange={e => setNewSoc({ ...newSoc, phone: e.target.value })} placeholder="+234..." />
+                  <Label htmlFor="admin" className="font-bold text-indigo-700 flex items-center gap-1">
+                    <Mail className="w-4 h-4" /> Admin Login Email <Badge variant="outline" className="text-[10px] py-0 border-indigo-200 text-indigo-600">REQUIRED</Badge>
+                  </Label>
+                  <Input id="admin" type="email" required value={newSoc.adminEmail} onChange={e => setNewSoc({ ...newSoc, adminEmail: e.target.value })} placeholder="admin@society.com" className="bg-white" />
+                  <p className="text-[10px] text-slate-500 italic">This is the email the society admin will use to SIGN IN. Default password: admin123</p>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="font-bold">Official Email</Label>
-                  <Input id="email" type="email" value={newSoc.email} onChange={e => setNewSoc({ ...newSoc, email: e.target.value })} placeholder="info@society.com" />
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="phone" className="font-bold">Official Phone</Label>
+                    <Input id="phone" value={newSoc.phone} onChange={e => setNewSoc({ ...newSoc, phone: e.target.value })} placeholder="+234..." className="bg-white" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email" className="font-bold">Official Email</Label>
+                    <Input id="email" type="email" required value={newSoc.email} onChange={e => setNewSoc({ ...newSoc, email: e.target.value })} placeholder="info@society.com" className="bg-white" />
+                  </div>
                 </div>
+                <p className="text-[10px] text-slate-500 italic">The "Official Email" will be displayed in the societies table and on reports.</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="addr" className="font-bold">Physical Address</Label>
@@ -183,78 +191,103 @@ export default function SocietiesPage() {
             <TableHeader className="bg-slate-50/50">
               <TableRow className="border-none hover:bg-transparent">
                 <TableHead className="font-bold text-slate-600 pl-6">Society Detail</TableHead>
+                <TableHead className="font-bold text-slate-600">Administrator</TableHead>
                 <TableHead className="font-bold text-slate-600">Assets Info</TableHead>
                 <TableHead className="font-bold text-slate-600">Status</TableHead>
                 <TableHead className="font-bold text-slate-600 pr-6 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {societies.map((society) => (
-                <TableRow key={society.id} className="group transition-colors hover:bg-slate-50/80">
-                  <TableCell className="pl-6 py-5">
-                    <div className="flex flex-col">
-                      <span className="font-extrabold text-slate-900 text-base">{society.name}</span>
-                      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
-                        <span className="text-xs font-semibold text-slate-400 flex items-center gap-1">
-                          <Hash className="w-3 h-3" /> {society.registrationNumber}
+              {societies.map((society) => {
+                const adminUser = users.find(u => u.id === society.adminUserId);
+                return (
+                  <TableRow key={society.id} className="group transition-colors hover:bg-slate-50/80">
+                    <TableCell className="pl-6 py-5">
+                      <div className="flex flex-col">
+                        <span className="font-extrabold text-slate-900 text-base">{society.name}</span>
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
+                          <span className="text-xs font-semibold text-slate-400 flex items-center gap-1">
+                            <Hash className="w-3 h-3" /> {society.registrationNumber}
+                          </span>
+                          <span className="text-xs font-semibold text-slate-400 flex items-center gap-1">
+                            <MapPin className="w-3 h-3" /> {society.address}
+                          </span>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-extrabold text-indigo-700 flex items-center gap-1">
+                          <Mail className="w-3 h-3" /> {adminUser?.email || 'N/A'}
                         </span>
-                        <span className="text-xs font-semibold text-slate-400 flex items-center gap-1">
-                          <MapPin className="w-3 h-3" /> {society.address}
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge variant="outline" className="text-[9px] font-bold text-slate-400 border-slate-200 uppercase px-1 py-0">
+                            P: admin123
+                          </Badge>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary" className="bg-primary/5 text-primary text-[10px] font-bold py-0 h-5">
+                            {society.memberCount} Members
+                          </Badge>
+                        </div>
+                        <span className="text-sm font-extrabold text-slate-700">
+                          {formatCurrency(society.totalSavings + society.totalShares)}
                         </span>
                       </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary" className="bg-primary/5 text-primary text-[10px] font-bold py-0 h-5">
-                          {society.memberCount} Members
-                        </Badge>
-                      </div>
-                      <span className="text-sm font-extrabold text-slate-700">
-                        {formatCurrency(society.totalSavings + society.totalShares)}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={`h-6 px-3 rounded-full font-bold shadow-sm ${society.status === 'active'
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={`h-6 px-3 rounded-full font-bold shadow-sm ${society.status === 'active'
                         ? 'bg-emerald-500 hover:bg-emerald-600'
                         : 'bg-rose-500 hover:bg-rose-600'
-                      }`}>
-                      {society.status.toUpperCase()}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="pr-6 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-9 px-4 rounded-xl font-bold gap-2 border-slate-200 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-100 transition-all"
-                        onClick={() => {
-                          setSelectedSociety(society);
-                          setIsAddMemberOpen(true);
-                        }}
-                      >
-                        <UserPlus className="w-4 h-4" />
-                        Add Member
-                      </Button>
+                        }`}>
+                        {society.status.toUpperCase()}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="pr-6 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-9 px-4 rounded-xl font-bold gap-2 border-slate-200 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-100 transition-all"
+                          onClick={() => {
+                            setSelectedSociety(society);
+                            setIsAddMemberOpen(true);
+                          }}
+                        >
+                          <UserPlus className="w-4 h-4" />
+                          Add Member
+                        </Button>
 
-                      <Button
-                        variant={society.status === 'active' ? 'destructive' : 'default'}
-                        size="sm"
-                        className={`h-9 px-4 rounded-xl font-bold gap-2 shadow-sm transition-all ${society.status === 'active'
+                        <Button
+                          variant={society.status === 'active' ? 'destructive' : 'default'}
+                          size="sm"
+                          className={`h-9 px-4 rounded-xl font-bold gap-2 shadow-sm transition-all ${society.status === 'active'
                             ? 'bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-100'
                             : 'bg-emerald-50 text-emerald-600 border border-emerald-100 hover:bg-emerald-100'
-                          }`}
-                        onClick={() => toggleStatus(society)}
-                      >
-                        <ShieldAlert className="w-4 h-4" />
-                        {society.status === 'active' ? 'Suspend' : 'Activate'}
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+                            }`}
+                          onClick={() => toggleStatus(society)}
+                        >
+                          {society.status === 'active' ? (
+                            <>
+                              <ShieldAlert className="w-4 h-4" />
+                              Suspend
+                            </>
+                          ) : (
+                            <>
+                              <Building2 className="w-4 h-4" />
+                              Activate
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </CardContent>

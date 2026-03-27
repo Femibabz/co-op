@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,13 +11,18 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FileText, Book, Users, DollarSign, Scale, Eye, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react';
+import { FileText, Book, Users, DollarSign, Scale, Eye, ChevronDown, ChevronUp, AlertCircle, Building2 } from 'lucide-react';
 import { db } from '@/lib/mock-data';
-import { ByLaw } from '@/types';
+import { ByLaw, Society } from '@/types';
 import { getSocietySettings } from '@/lib/society-settings';
 
-export default function ApplyPage() {
+import { Suspense } from 'react';
+
+function ApplyPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const urlSocietyId = searchParams.get('societyId');
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
@@ -26,6 +31,9 @@ export default function ApplyPage() {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [showByLaws, setShowByLaws] = useState(false);
   const [members, setMembers] = useState<any[]>([]);
+  const [societies, setSocieties] = useState<Society[]>([]);
+  const [selectedSocietyId, setSelectedSocietyId] = useState<string | null>(urlSocietyId);
+  const [selectedSociety, setSelectedSociety] = useState<Society | null>(null);
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -37,19 +45,51 @@ export default function ApplyPage() {
     guarantor2Id: '',
   });
 
+  // Load all societies on mount
   useEffect(() => {
-    // Load active by-laws and members for prospective members
-    const loadData = async () => {
-      const activeByLaws = await db.getActiveByLaws();
-      setByLaws(activeByLaws);
-
-      // Load all active members for guarantor selection
-      const allMembers = await db.getMembers();
-      const activeMembers = allMembers.filter(m => m.status === 'active');
-      setMembers(activeMembers);
+    const fetchSocieties = async () => {
+      const allSocieties = await db.getAllSocieties();
+      setSocieties(allSocieties);
     };
-    loadData();
+    fetchSocieties();
   }, []);
+
+  // Update selected society when ID changes (from URL or manual selection)
+  useEffect(() => {
+    if (selectedSocietyId) {
+      const loadSocietyData = async () => {
+        try {
+          const society = await db.getSocietyById(selectedSocietyId);
+          if (society) {
+            setSelectedSociety(society);
+            
+            // Load specific by-laws for this society
+            const activeByLaws = await db.getActiveByLaws(selectedSocietyId);
+            setByLaws(activeByLaws);
+
+            // Load members for this society
+            const allMembers = await db.getMembers(selectedSocietyId);
+            const activeMembers = allMembers.filter(m => m.status === 'active');
+            setMembers(activeMembers);
+            
+            // Reset guarantors if society changed
+            setFormData(prev => ({
+              ...prev,
+              guarantor1Id: '',
+              guarantor2Id: ''
+            }));
+          }
+        } catch (err) {
+          console.error("Error loading society data:", err);
+        }
+      };
+      loadSocietyData();
+    } else {
+      setSelectedSociety(null);
+      setByLaws([]);
+      setMembers([]);
+    }
+  }, [selectedSocietyId]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -88,9 +128,15 @@ export default function ApplyPage() {
         return;
       }
 
+      // Validate society selection
+      if (!selectedSocietyId) {
+        setError('Please select a society to join');
+        return;
+      }
+
       // Create application with guarantor details
       const application = await db.createApplication({
-        societyId: 'soc1',
+        societyId: selectedSocietyId,
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
@@ -212,7 +258,7 @@ export default function ApplyPage() {
             Membership Onboarding
           </Badge>
           <h1 className="text-4xl sm:text-6xl font-black text-slate-900 tracking-tighter">
-            Join the <span className="text-emerald-600">OsuOlale</span> Legacy
+            Join the <span className="text-emerald-600">{selectedSociety?.name || 'Cooperative'}</span> Legacy
           </h1>
           <p className="max-w-xl mx-auto text-lg text-slate-500 font-medium leading-relaxed">
             Take your seat at the table of collective prosperity. Complete your application to access institutional growth.
@@ -279,12 +325,12 @@ export default function ApplyPage() {
                 </div>
 
                 <div className="mt-8 p-5 bg-gradient-to-br from-emerald-600 to-teal-700 rounded-2xl text-white shadow-lg shadow-emerald-700/20">
-                  <p className="text-sm font-bold flex items-center gap-3">
+                  <div className="text-sm font-bold flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
                       <Scale className="w-4 h-4" />
                     </div>
                     By proceeding with your application, you acknowledge and agree to adhere to these foundational statutes.
-                  </p>
+                  </div>
                 </div>
               </CardContent>
             )}
@@ -298,6 +344,46 @@ export default function ApplyPage() {
           </div>
           <CardContent className="p-8 sm:p-12">
             <form onSubmit={handleSubmit} className="space-y-12">
+              {/* Society Selection */}
+              <div className="space-y-8">
+                <div className="flex items-center gap-4">
+                  <div className="px-3 py-1 bg-slate-900 text-white text-xs font-black rounded-lg">SEGMENT 0</div>
+                  <h3 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em]">Select Your Society</h3>
+                  <div className="flex-1 h-[2px] bg-slate-100"></div>
+                </div>
+
+                <div className="space-y-3">
+                  <Label htmlFor="societySelect" className="text-xs font-black text-slate-600 uppercase tracking-widest">Available Cooperative Societies</Label>
+                  <Select
+                    value={selectedSocietyId || undefined}
+                    onValueChange={(value) => setSelectedSocietyId(value)}
+                  >
+                    <SelectTrigger id="societySelect" className="h-14 px-6 rounded-2xl bg-slate-50 border-2 border-transparent focus:bg-white focus:border-emerald-500 transition-all font-bold text-slate-700">
+                      <SelectValue placeholder="Identify the society you wish to join" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-2xl border-none shadow-xl">
+                      {societies.map((soc) => (
+                        <SelectItem
+                          key={soc.id}
+                          value={soc.id}
+                          className="h-12 px-4 font-bold rounded-xl focus:bg-emerald-50 focus:text-emerald-700"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Building2 className="w-4 h-4 text-slate-400" />
+                            <span>{soc.name}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {!selectedSocietyId && (
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-1.5 ml-1 animate-pulse">
+                      <AlertCircle className="w-3 h-3" /> Please select a society to view its constitution and member registry
+                    </p>
+                  )}
+                </div>
+              </div>
+
               {/* Personal Details */}
               <div className="space-y-8">
                 <div className="flex items-center gap-4">
@@ -560,5 +646,17 @@ export default function ApplyPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+export default function ApplyPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="w-10 h-10 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div>
+      </div>
+    }>
+      <ApplyPageContent />
+    </Suspense>
   );
 }

@@ -13,9 +13,16 @@ import { Label } from '@/components/ui/label';
 import { db } from '@/lib/mock-data';
 import { EmailService } from '@/lib/email-service';
 import { MembershipApplication, GuarantorRequest } from '@/types';
-import { ShieldCheck, ShieldX, Shield } from 'lucide-react';
+import {
+  Users, Search, UserCheck, UserX, Clock,
+  CheckCircle2, XCircle, ChevronRight, FileText,
+  AlertCircle, ShieldCheck, Mail, Phone, MapPin, Briefcase,
+  DollarSign, Calendar, MessageSquare, Save, Trash2, Edit
+} from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function ApplicationsPage() {
+  const { user } = useAuth();
   const [applications, setApplications] = useState<MembershipApplication[]>([]);
   const [members, setMembers] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -27,17 +34,21 @@ export default function ApplicationsPage() {
   const [guarantorRequests, setGuarantorRequests] = useState<GuarantorRequest[]>([]);
 
   useEffect(() => {
-    loadApplications();
-    loadMembers();
-  }, []);
+    if (user?.societyId) {
+      loadApplications();
+      loadMembers();
+    }
+  }, [user]);
 
   const loadApplications = async () => {
-    const allApplications = await db.getApplications();
+    if (!user?.societyId) return;
+    const allApplications = await db.getApplications(user.societyId);
     setApplications(allApplications);
   };
 
   const loadMembers = async () => {
-    const allMembers = await db.getMembers();
+    if (!user?.societyId) return;
+    const allMembers = await db.getMembers(user.societyId);
     setMembers(allMembers);
   };
 
@@ -71,6 +82,7 @@ export default function ApplicationsPage() {
       setSuccess('');
 
       // Update application status
+      console.log('Step 1: Updating application status to approved...', selectedApplication.id);
       const updatedApplication = await db.updateApplication(selectedApplication.id, {
         status: 'approved',
         reviewedAt: new Date(),
@@ -78,24 +90,57 @@ export default function ApplicationsPage() {
         reviewNotes,
       });
 
-      if (updatedApplication !== undefined) {
-        // Create user account with default password and first login flag
-        const user = await db.createUser({
+      if (!updatedApplication) {
+        throw new Error('Could not update application status in database.');
+      }
+
+      // Use application's societyId, or fallback to the current admin's societyId
+      const activeSocietyId = selectedApplication.societyId || user?.societyId || 'soc1';
+      console.log('Step 2: Using activeSocietyId:', activeSocietyId);
+
+      // Create or update user account
+      console.log('Step 3: Creating/Updating user account for:', selectedApplication.email);
+      let userAccount;
+      try {
+        userAccount = await db.createUser({
           email: selectedApplication.email,
           password: 'member123', // Default password - user must change on first login
           role: 'member',
+          societyId: activeSocietyId,
           isFirstLogin: true, // Flag to prompt password change on first login
         });
+        console.log('User account ready:', userAccount.id);
+      } catch (userErr: any) {
+        console.error('User creation/update failed:', userErr);
+        throw new Error(`User Account Error: ${userErr.message}`);
+      }
 
-        // Generate member number
-        const allMembers = await db.getMembers();
-        const memberCount = allMembers.length;
-        const memberNumber = `OSU${String(memberCount + 1).padStart(3, '0')}`;
+      // Generate member number globally unique across all societies
+      console.log('Step 4: Generating member number...');
+      const allMembers = await db.getMembers(); // Fetch all members globally
+      
+      // Find the highest numeric part of existing MEM-XXXXXX numbers
+      let maxNumber = 0;
+      allMembers.forEach(m => {
+        if (m.memberNumber && m.memberNumber.startsWith('MEM-')) {
+          const num = parseInt(m.memberNumber.replace('MEM-', ''), 10);
+          if (!isNaN(num) && num > maxNumber) {
+            maxNumber = num;
+          }
+        }
+      });
+      
+      const nextNumber = maxNumber + 1;
+      const memberNumber = `MEM-${String(nextNumber).padStart(6, '0')}`;
+      console.log('Generated Globally Unique Member Number:', memberNumber);
 
-        // Create member record
-        const newMember = await db.createMember({
-          userId: user.id,
-          societyId: 'soc1',
+      // Create member record with correct societyId
+      console.log('Step 5: Creating member record...');
+      let newMember;
+      try {
+        newMember = await db.createMember({
+          userId: userAccount.id,
+          societyId: activeSocietyId,
           memberNumber,
           firstName: selectedApplication.firstName,
           lastName: selectedApplication.lastName,
@@ -109,28 +154,33 @@ export default function ApplicationsPage() {
           interestBalance: 0,
           societyDues: 0,
         });
-
-        // Send approval email
-        const emailSent = await EmailService.sendApprovalEmail({
-          applicantName: `${selectedApplication.firstName} ${selectedApplication.lastName}`,
-          applicantEmail: selectedApplication.email,
-          memberNumber: newMember.memberNumber,
-          loginEmail: selectedApplication.email,
-          loginPassword: 'member123',
-        });
-
-        if (emailSent) {
-          setSuccess('Application approved, member account created, and approval email sent');
-        } else {
-          setSuccess('Application approved and member account created (email notification failed)');
-        }
-
-        setIsDialogOpen(false);
-        loadApplications();
+        console.log('Member record created successfully:', newMember.id);
+      } catch (memberErr: any) {
+        console.error('Member record creation failed:', memberErr);
+        throw new Error(`Member Record Error: ${memberErr.message}`);
       }
-    } catch (err) {
-      console.error('Error approving application:', err);
-      setError('Failed to approve application. Please try again.');
+
+      // Send approval email
+      console.log('Step 6: Sending notification email...');
+      const emailSent = await EmailService.sendApprovalEmail({
+        applicantName: `${selectedApplication.firstName} ${selectedApplication.lastName}`,
+        applicantEmail: selectedApplication.email,
+        memberNumber: newMember.memberNumber,
+        loginEmail: selectedApplication.email,
+        loginPassword: 'member123',
+      });
+
+      if (emailSent) {
+        setSuccess('Application approved, member account created, and approval email sent');
+      } else {
+        setSuccess('Application approved and member account created (email notification failed)');
+      }
+
+      setIsDialogOpen(false);
+      loadApplications();
+    } catch (err: any) {
+      console.error('FULL APPROVAL ERROR:', err);
+      setError(err.message || 'Failed to approve application. Please try again.');
     }
   };
 
@@ -264,9 +314,9 @@ export default function ApplicationsPage() {
 
       {/* Review Application Modal */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-3xl w-[95vw] sm:w-full">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Review Membership Application</DialogTitle>
+            <DialogTitle>Membership Application Details</DialogTitle>
             <DialogDescription>
               Review applicant details and approve or reject the application
             </DialogDescription>
@@ -484,6 +534,32 @@ export default function ApplicationsPage() {
                   </div>
                 );
               })()}
+
+              {selectedApplication.status === 'approved' && !members.find(m => m.email === selectedApplication.email) && (
+                <div className="flex flex-col gap-2 pt-4 border-t">
+                  <Alert className="bg-amber-50 border-amber-200">
+                    <AlertCircle className="h-4 w-4 text-amber-600" />
+                    <AlertDescription className="text-amber-800 font-medium">
+                      Member profile was not created or is out of sync. Click the button below to retry creation.
+                    </AlertDescription>
+                  </Alert>
+                  <div className="flex justify-end space-x-2">
+                    <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Close</Button>
+                    <Button 
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                      onClick={handleApproveApplication}
+                    >
+                      Sync Member Profile
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {selectedApplication.status !== 'pending' && (selectedApplication.status !== 'approved' || members.find(m => m.email === selectedApplication.email)) && (
+                <div className="flex justify-end pt-4 border-t">
+                  <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Close</Button>
+                </div>
+              )}
             </div>
           )}
         </DialogContent>

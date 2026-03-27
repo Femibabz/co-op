@@ -55,7 +55,7 @@ export default function SuperAdminLayout({
                 </svg>
               </div>
               <div className="flex flex-col">
-                <h1 className="text-lg font-extrabold text-white tracking-tight leading-none">OsuOlale</h1>
+                <h1 className="text-lg font-extrabold text-white tracking-tight leading-none">Coopkonnect</h1>
                 <span className="text-[10px] font-bold text-indigo-100 uppercase tracking-widest mt-0.5">Super Admin</span>
               </div>
             </div>
@@ -80,6 +80,7 @@ export default function SuperAdminLayout({
           <div className="flex space-x-1 overflow-x-auto scrollbar-hide py-2">
             {[
               { href: '/super-admin', label: 'Dashboard' },
+              { href: '/super-admin/societies', label: 'Societies' },
               { href: '/super-admin/users', label: 'Users' },
               { href: '/super-admin/members', label: 'Members' },
               { href: '/super-admin/database-setup', label: 'Database Setup' },
@@ -89,8 +90,8 @@ export default function SuperAdminLayout({
                 key={link.href}
                 href={link.href}
                 className={`whitespace-nowrap rounded-xl py-2 px-4 text-xs font-bold transition-all duration-300 ${pathname === link.href
-                    ? 'bg-indigo-50 text-indigo-700 shadow-sm border border-indigo-100'
-                    : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+                  ? 'bg-indigo-50 text-indigo-700 shadow-sm border border-indigo-100'
+                  : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
                   }`}
               >
                 {link.label}

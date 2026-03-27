@@ -27,24 +27,25 @@ export interface SocietySettings {
     maxActiveGuaranteesPerMember: number;
 }
 
-const STORAGE_KEY = 'societySettings';
+const BASE_STORAGE_KEY = 'societySettings';
 
 const DEFAULTS: SocietySettings = {
     loanInterestRate: 1.5,
     penaltyAfterMonths: 12,
     maxLoanMultiple: 2,
     minMembershipMonthsForLoan: 6,
-    societyName: 'Osuolale Cooperative Society',
+    societyName: 'Default Cooperative Society',
     loanGuarantorCount: 2,
     membershipGuarantorCount: 2,
     maxActiveGuaranteesPerMember: 2,
 };
 
 /** Load settings from localStorage (merges with defaults for missing keys) */
-export function getSocietySettings(): SocietySettings {
+export function getSocietySettings(societyId?: string): SocietySettings {
     if (typeof window === 'undefined') return { ...DEFAULTS };
     try {
-        const raw = localStorage.getItem(STORAGE_KEY);
+        const key = societyId ? `${BASE_STORAGE_KEY}_${societyId}` : BASE_STORAGE_KEY;
+        const raw = localStorage.getItem(key);
         if (!raw) return { ...DEFAULTS };
         return { ...DEFAULTS, ...JSON.parse(raw) };
     } catch {
@@ -53,11 +54,12 @@ export function getSocietySettings(): SocietySettings {
 }
 
 /** Persist updated settings to localStorage */
-export function saveSocietySettings(settings: Partial<SocietySettings>): SocietySettings {
-    const current = getSocietySettings();
+export function saveSocietySettings(settings: Partial<SocietySettings>, societyId?: string): SocietySettings {
+    const current = getSocietySettings(societyId);
     const merged = { ...current, ...settings };
     if (typeof window !== 'undefined') {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+        const key = societyId ? `${BASE_STORAGE_KEY}_${societyId}` : BASE_STORAGE_KEY;
+        localStorage.setItem(key, JSON.stringify(merged));
     }
     return merged;
 }

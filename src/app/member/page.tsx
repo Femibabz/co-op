@@ -50,8 +50,13 @@ export default function MemberDashboard() {
           setGuarantorRequests(allReqs.filter(r => r.status === 'pending'));
           setActiveGuarantees(allReqs.filter(r => r.status === 'approved'));
           // Unread broadcasts
-          const msgs = db.getBroadcastMessages();
-          setBroadcasts(msgs.filter(m => !m.readBy.includes(memberData.id)));
+          if (user.societyId) {
+            const msgs = await db.getBroadcastMessages(user.societyId);
+            console.log('MemberDashboard: All broadcasts for society:', msgs);
+            const unread = msgs.filter(m => !m.readBy.includes(memberData.id));
+            console.log('MemberDashboard: Unread broadcasts:', unread);
+            setBroadcasts(unread);
+          }
         }
         setIsLoaded(true);
       } catch (error) {
@@ -187,10 +192,23 @@ export default function MemberDashboard() {
                   <p className="text-[10px] mt-2 text-sky-600 font-bold">{new Date(msg.sentAt).toLocaleDateString()}</p>
                 </div>
                 <button
-                  onClick={() => {
-                    if (!member) return;
-                    db.markBroadcastRead(msg.id, member.id);
-                    setBroadcasts(prev => prev.filter(m => m.id !== msg.id));
+                  onClick={async () => {
+                    if (!member) {
+                      console.warn('MemberDashboard: Cannot dismiss, member data missing');
+                      return;
+                    }
+                    console.log(`MemberDashboard: Dismiss clicking! msgId: ${msg.id}, memberId: ${member.id}`);
+                    try {
+                      await db.markBroadcastRead(msg.id, member.id);
+                      console.log('MemberDashboard: db.markBroadcastRead completed');
+                      setBroadcasts(prev => {
+                        const next = prev.filter(m => m.id !== msg.id);
+                        console.log(`MemberDashboard: Updating UI state. Remaining broadcasts: ${next.length}`);
+                        return next;
+                      });
+                    } catch (err) {
+                      console.error('MemberDashboard: Error during dismissal:', err);
+                    }
                   }}
                   className="shrink-0 text-sky-400 hover:text-sky-700 transition-colors"
                   title="Dismiss"
@@ -293,9 +311,14 @@ export default function MemberDashboard() {
           <div className="premium-card p-6 flex items-center justify-between">
             <div className="space-y-1">
               <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">Society Dues</p>
-              <p className={`text-2xl font-extrabold ${member.societyDues > 0 ? 'text-amber-600' : 'text-slate-900'}`}>
-                {formatCurrency(member.societyDues)}
-              </p>
+              <div className="flex items-center gap-3">
+                <p className={`text-2xl font-extrabold ${member.societyDues > 0 ? 'text-amber-600' : 'text-slate-900'}`}>
+                  {formatCurrency(member.societyDues)}
+                </p>
+                <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px] font-black uppercase tracking-tighter bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg border border-amber-200/50" asChild>
+                  <Link href="/member/levies">View Breakdown</Link>
+                </Button>
+              </div>
             </div>
             <div className={`p-2 rounded-xl ${member.societyDues > 0 ? 'bg-amber-50 text-amber-600' : 'bg-slate-50 text-slate-400'}`}>
               <CircleDollarSign className="w-6 h-6" />

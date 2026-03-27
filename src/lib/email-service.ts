@@ -25,7 +25,7 @@ export class EmailService {
       // For demo purposes, we'll log the email instead of actually sending
       console.log('Sending approval email:', {
         to: data.applicantEmail,
-        subject: 'Membership Application Approved - OsuOlale Cooperative',
+        subject: 'Membership Application Approved',
         message: `
 Dear ${data.applicantName},
 
@@ -41,10 +41,11 @@ Please log in to your account at your earliest convenience to:
 2. Complete your profile
 3. Start using our services
 
-Welcome to OsuOlale Cooperative Society!
+Welcome to the society!
 
 Best regards,
-The OsuOlale Admin Team
+The Society Admin Team
+via Coopkonnect
         `
       });
 
@@ -73,11 +74,11 @@ The OsuOlale Admin Team
       // For demo purposes, we'll log the email instead of actually sending
       console.log('Sending rejection email:', {
         to: data.applicantEmail,
-        subject: 'Membership Application Update - OsuOlale Cooperative',
+        subject: 'Membership Application Update',
         message: `
 Dear ${data.applicantName},
 
-Thank you for your interest in joining OsuOlale Cooperative Society.
+Thank you for your interest.
 
 After careful review, we regret to inform you that your membership application has not been approved at this time.
 
@@ -85,10 +86,11 @@ Reason: ${data.rejectionReason || 'Application did not meet current membership c
 
 You are welcome to reapply in the future. If you have any questions about this decision, please feel free to contact our administration team.
 
-Thank you for considering OsuOlale Cooperative Society.
+Thank you for your interest.
 
 Best regards,
-The OsuOlale Admin Team
+The Society Admin Team
+via Coopkonnect
         `
       });
 

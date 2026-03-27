@@ -44,7 +44,7 @@ export default function SuperAdminDashboard() {
   useEffect(() => {
     const loadData = async () => {
       // Get platform statistics
-      const platformStats = db.getPlatformStatistics();
+      const platformStats = await db.getPlatformStatistics();
       setStats(platformStats);
 
       // Get recent transactions (last 10)
@@ -52,12 +52,14 @@ export default function SuperAdminDashboard() {
       setRecentTransactions(allTransactions.slice(0, 10));
 
       // Get recent login sessions (last 15)
-      const allSessions = db.getLoginSessions();
+      const allSessions = await db.getLoginSessions();
       setRecentSessions(allSessions.slice(0, 15));
 
       // Get all members and users
-      setMembers(db.getAllMembers());
-      setUsers(db.getAllUsers());
+      const allMembers = await db.getAllMembers();
+      const allUsers = await db.getAllUsers();
+      setMembers(allMembers);
+      setUsers(allUsers);
     };
 
     loadData();
@@ -204,8 +206,19 @@ export default function SuperAdminDashboard() {
 
         <div className="premium-card p-6 flex flex-col justify-between group">
           <div className="flex items-center justify-between">
+            <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">Managed Societies</p>
+            <Building2 className="w-4 h-4 text-slate-300 group-hover:text-amber-500 transition-colors" />
+          </div>
+          <div className="mt-4 space-y-1">
+            <p className="text-4xl font-extrabold text-slate-900 tracking-tight">{stats.totalSocieties}</p>
+            <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest">{stats.activeSocieties} ACTIVE SOCIETIES</p>
+          </div>
+        </div>
+
+        <div className="premium-card p-6 flex flex-col justify-between group">
+          <div className="flex items-center justify-between">
             <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">Pending Requests</p>
-            <FileClock className="w-4 h-4 text-slate-300 group-hover:text-amber-500 transition-colors" />
+            <FileClock className="w-4 h-4 text-slate-300 group-hover:text-rose-500 transition-colors" />
           </div>
           <div className="mt-4 space-y-1">
             <p className="text-4xl font-extrabold text-rose-600 tracking-tight">{stats.pendingApplications}</p>

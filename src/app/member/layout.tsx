@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { db } from '@/lib/mock-data';
-import { Member } from '@/types';
+import { Member, Society } from '@/types';
 import PasswordChangeModal from '@/components/PasswordChangeModal';
 import {
   LayoutDashboard,
@@ -29,6 +29,7 @@ export default function MemberLayout({
   const router = useRouter();
   const pathname = usePathname();
   const [member, setMember] = useState<Member | null>(null);
+  const [society, setSociety] = useState<Society | null>(null);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -37,6 +38,11 @@ export default function MemberLayout({
       if (user?.role === 'member') {
         const memberData = await db.getMemberByUserId(user.id);
         setMember(memberData || null);
+
+        if (user.societyId) {
+          const societyData = await db.getSocietyById(user.societyId);
+          setSociety(societyData || null);
+        }
 
         if (user.isFirstLogin) {
           setShowPasswordModal(true);
@@ -90,7 +96,7 @@ export default function MemberLayout({
                 <FileText className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-slate-900 tracking-tight">OsuOlale</h1>
+                <h1 className="text-xl font-bold text-slate-900 tracking-tight">{society?.name || 'Portal'}</h1>
                 <p className="hidden sm:block text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-1">
                   Member Portal
                 </p>
@@ -147,8 +153,8 @@ export default function MemberLayout({
                 href={item.href}
                 onClick={() => setIsMobileMenuOpen(false)}
                 className={`flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold transition-all ${pathname === item.href
-                    ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-105'
-                    : 'text-slate-600 hover:bg-slate-50'
+                  ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-105'
+                  : 'text-slate-600 hover:bg-slate-50'
                   }`}
               >
                 <item.icon className="w-5 h-5" />
@@ -178,8 +184,8 @@ export default function MemberLayout({
                 key={item.href}
                 href={item.href}
                 className={`relative py-4 px-4 text-sm font-bold transition-all group ${pathname === item.href
-                    ? 'text-primary'
-                    : 'text-slate-500 hover:text-slate-900'
+                  ? 'text-primary'
+                  : 'text-slate-500 hover:text-slate-900'
                   }`}
               >
                 <div className="flex items-center gap-2">

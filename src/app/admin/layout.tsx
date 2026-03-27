@@ -9,6 +9,8 @@ import {
   TrendingUp, Calculator, BookOpen, Activity, LogOut,
   Menu, X, ChevronRight, Bell, Settings, Shield
 } from 'lucide-react';
+import { Society } from '@/types';
+import { db } from '@/lib/mock-data';
 
 const navItems = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, exact: true },
@@ -28,8 +30,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [society, setSociety] = useState<Society | null>(null);
 
   useEffect(() => { setMounted(true); }, []);
+
+  useEffect(() => {
+    if (user?.societyId) {
+      db.getSocietyById(user.societyId).then(soc => setSociety(soc || null));
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user?.isFirstLogin && pathname !== '/admin/change-password') {
+      router.push('/admin/change-password');
+    }
+  }, [user, pathname, router]);
 
   useEffect(() => {
     if (!isLoading && (!user || user.role !== 'admin')) {
@@ -93,7 +108,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <Shield className="w-5 h-5 text-white" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-white font-extrabold text-lg leading-none tracking-tight">OsuOlale</p>
+            <p className="text-white font-extrabold text-lg leading-none tracking-tight truncate">
+              {society?.name || 'Portal'}
+            </p>
             <p className="text-emerald-400 text-[10px] font-bold uppercase tracking-widest mt-1">Admin Portal</p>
           </div>
           <button

@@ -7,8 +7,11 @@ import { DashboardStats } from '@/types';
 import {
   Users, PiggyBank, Coins, Building2, TrendingUp,
   FileClock, Clock, ArrowRight, CreditCard, Calculator,
-  Activity, ChevronRight, AlertCircle, CheckCircle2
+  Activity, ChevronRight, AlertCircle, CheckCircle2,
+  Building
 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { Society } from '@/types';
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats>({
@@ -23,13 +26,24 @@ export default function AdminDashboard() {
   const [recentApplications, setRecentApplications] = useState<any[]>([]);
   const [recentLoans, setRecentLoans] = useState<any[]>([]);
   const [members, setMembers] = useState<any[]>([]);
+  const { user } = useAuth();
+  const [society, setSociety] = useState<Society | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const loadStats = async () => {
-      const membersData = await db.getMembers();
-      const applications = await db.getApplications();
-      const loanApplications = await db.getLoanApplications();
+      if (!user?.societyId) {
+        setLoading(false);
+        return;
+      }
+
+      // Fetch society name
+      const socData = await db.getSocietyById(user.societyId);
+      setSociety(socData || null);
+
+      const membersData = await db.getMembers(user.societyId);
+      const applications = await db.getApplications(user.societyId);
+      const loanApplications = await db.getLoanApplications(user.societyId);
 
       const totalSavings = membersData.reduce((s, m) => s + m.savingsBalance, 0);
       const totalLoans = membersData.reduce((s, m) => s + m.loanBalance, 0);
@@ -48,8 +62,8 @@ export default function AdminDashboard() {
       setRecentLoans(loanApplications.filter(l => l.status === 'pending').slice(0, 5));
       setLoading(false);
     };
-    loadStats();
-  }, []);
+    if (user) loadStats();
+  }, [user]);
 
   const fmt = (n: number) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(n);
 
@@ -73,7 +87,7 @@ export default function AdminDashboard() {
         <div>
           <p className="text-emerald-600 font-bold text-xs uppercase tracking-widest mb-1">{greeting} 👋</p>
           <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">Society Dashboard</h1>
-          <p className="text-slate-500 mt-1 font-medium">Here's what's happening with OsuOlale Cooperative today.</p>
+          <p className="text-slate-500 mt-1 font-medium">Here's what's happening with {society?.name || 'your cooperative'} today.</p>
         </div>
         <div className="flex gap-3">
           <Link

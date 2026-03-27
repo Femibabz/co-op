@@ -39,7 +39,8 @@ export default function AdminByLawsPage() {
   }, []);
 
   const loadByLaws = () => {
-    const allByLaws = db.getByLaws();
+    if (!user?.societyId) return;
+    const allByLaws = db.getByLaws(user.societyId);
     setByLaws(allByLaws);
   };
 

@@ -83,16 +83,20 @@ export default function TransactionsPage() {
   };
 
   const getTransactionLabel = (type: string) => {
+    if (type === 'dues_charge') return 'Society Levy / Dues';
+    if (type === 'dues_payment') return 'Dues Payment';
     return type.replace('_', ' ').split(' ').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
   };
 
   const getTransactionInfo = (type: string) => {
     const isCredit = type.includes('deposit') || type.includes('disbursement');
+    const isDuesCharge = type === 'dues_charge';
+    
     return {
-      color: isCredit ? 'text-emerald-600' : 'text-rose-600',
-      bgColor: isCredit ? 'bg-emerald-50' : 'bg-rose-50',
-      icon: isCredit ? ArrowDownLeft : ArrowUpRight,
-      prefix: isCredit ? '+' : '-'
+      color: (isCredit && !isDuesCharge) ? 'text-emerald-600' : 'text-rose-600',
+      bgColor: (isCredit && !isDuesCharge) ? 'bg-emerald-50' : 'bg-rose-50',
+      icon: (isCredit && !isDuesCharge) ? ArrowDownLeft : ArrowUpRight,
+      prefix: (isCredit && !isDuesCharge) ? '+' : '-'
     };
   };
 
@@ -251,6 +255,8 @@ export default function TransactionsPage() {
                 <SelectItem value="loan_payment">Loan Payment</SelectItem>
                 <SelectItem value="interest_charge">Interest Charge</SelectItem>
                 <SelectItem value="interest_payment">Interest Payment</SelectItem>
+                <SelectItem value="dues_charge">Society Levy</SelectItem>
+                <SelectItem value="dues_payment">Dues Payment</SelectItem>
               </SelectContent>
             </Select>
           </div>

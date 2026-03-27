@@ -62,7 +62,7 @@ export default function LoginPage() {
             <div className="p-2.5 bg-white/10 backdrop-blur-md rounded-xl border border-white/20">
               <ShieldCheck className="w-8 h-8 text-white" />
             </div>
-            <span className="text-2xl font-bold text-white tracking-tight">OsuOlale</span>
+            <span className="text-2xl font-bold text-white tracking-tight">Coopkonnect</span>
           </div>
 
           <div className="space-y-6 max-w-lg">
@@ -96,7 +96,7 @@ export default function LoginPage() {
         <div className="max-w-md w-full space-y-8 animate-fadeIn">
           <div className="lg:hidden text-center mb-12">
             <ShieldCheck className="w-12 h-12 text-primary mx-auto mb-4" />
-            <h2 className="text-3xl font-bold premium-gradient-text">OsuOlale</h2>
+            <h2 className="text-3xl font-bold premium-gradient-text">Coopkonnect</h2>
           </div>
 
           <div className="space-y-2">
@@ -170,7 +170,7 @@ export default function LoginPage() {
 
                 <div className="relative py-4">
                   <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-slate-200"></span></div>
-                  <div className="relative flex justify-center text-xs uppercase"><span className="bg-slate-50 px-2 text-slate-500 font-bold">New to OsuOlale?</span></div>
+                  <div className="relative flex justify-center text-xs uppercase"><span className="bg-slate-50 px-2 text-slate-500 font-bold">Become a member of one of the Societies</span></div>
                 </div>
 
                 <Button variant="outline" className="w-full h-12 rounded-xl border-2 hover:bg-slate-50 font-bold text-slate-700" asChild>
@@ -178,41 +178,11 @@ export default function LoginPage() {
                 </Button>
               </form>
 
-              {/* Demo Access Hub */}
-              <div className="mt-12 p-6 rounded-2xl bg-white border border-slate-200/60 shadow-sm">
-                <div className="flex items-center gap-2 mb-6">
-                  <div className="w-1.5 h-6 bg-primary rounded-full"></div>
-                  <h3 className="font-bold text-slate-900 tracking-tight">Demo Access Hub</h3>
-                </div>
 
-                <div className="grid gap-3">
-                  {[
-                    { role: 'Super Admin', email: 'platform@admin.com', pass: 'superadmin123', icon: ShieldCheck, color: 'text-purple-600', bg: 'bg-purple-50' },
-                    { role: 'Admin', email: 'admin@osuolale.com', pass: 'admin123', icon: UserCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-                    { role: 'Member', email: 'john.doe@email.com', pass: 'member123', icon: UserCircle2, color: 'text-blue-600', bg: 'bg-blue-50' }
-                  ].map((demo, i) => (
-                    <div key={i} className="flex items-center gap-4 p-3 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100 group">
-                      <div className={`p-2 rounded-lg ${demo.bg}`}>
-                        <demo.icon className={`w-5 h-5 ${demo.color}`} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{demo.role}</p>
-                        <p className="text-sm font-semibold text-slate-700 truncate">{demo.email}</p>
-                      </div>
-                      <button
-                        onClick={() => { setEmail(demo.email); setPassword(demo.pass); }}
-                        className="opacity-0 group-hover:opacity-100 p-2 text-primary hover:bg-primary/10 rounded-lg transition-all"
-                      >
-                        <ArrowRight className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </CardContent>
           </Card>
         </div>
       </div>
-    </div>
+    </div >
   );
 }

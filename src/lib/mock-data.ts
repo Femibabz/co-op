@@ -285,6 +285,58 @@ DISCIPLINARY ACTIONS:
     updatedAt: new Date('2024-01-15'),
     isActive: true,
   },
+  {
+    id: 'bl-soc2-1',
+    societyId: 'soc2',
+    title: 'Unity Membership & Unity Principles',
+    content: `1. Membership in Unity Cooperative is open to all who share our vision of collective growth.
+2. Members must contribute minimum ₦10,000 monthly.
+3. Decision making is done through consensus during monthly town halls.`,
+    category: 'membership',
+    createdBy: '4',
+    createdAt: new Date('2024-02-05'),
+    updatedAt: new Date('2024-02-05'),
+    isActive: true,
+  },
+  {
+    id: 'bl-soc2-2',
+    societyId: 'soc2',
+    title: 'Unity Loan Framework',
+    content: `1. Loans are interest-free for the first 3 months.
+2. Maximum loan amount is 2x of savings balance.
+3. Guarantors must have at least 1 year of active membership.`,
+    category: 'financial',
+    createdBy: '4',
+    createdAt: new Date('2024-02-05'),
+    updatedAt: new Date('2024-02-05'),
+    isActive: true,
+  },
+  {
+    id: 'bl-osu-dynamic-1',
+    societyId: 'soc1774539941239', // Osuolale CTCS
+    title: 'Osuolale Membership Statutes',
+    content: `1. Open to all individuals in the Osuolale community.
+2. Monthly contribution is mandatory.
+3. Members must adhere to the core values of integrity and cooperation.`,
+    category: 'membership',
+    createdBy: 'admin',
+    createdAt: new Date('2024-03-26'),
+    updatedAt: new Date('2024-03-26'),
+    isActive: true,
+  },
+  {
+    id: 'bl-ire-dynamic-1',
+    societyId: 'soc1774540250718', // Irewole CTCS
+    title: 'Irewole Cooperative Constitution',
+    content: `1. Membership requires registration and approval.
+2. Savings must be consistent.
+3. Loans are granted based on savings history.`,
+    category: 'membership',
+    createdBy: 'admin',
+    createdAt: new Date('2024-03-26'),
+    updatedAt: new Date('2024-03-26'),
+    isActive: true,
+  },
 ];
 
 // Mock members
@@ -308,7 +360,7 @@ export const mockMembers: Member[] = [
     societyDues: 2000,
     loanStartDate: new Date('2024-01-15'),
     loanDurationMonths: 12,
-    loanInterestRate: 15, // 15% annual
+    loanInterestRate: 1.5, // 1.5% monthly (approx 18% annual)
     monthlyLoanPayment: 7500,
   },
   {
@@ -710,11 +762,12 @@ export class MockDatabase {
   }
 
   async createUser(user: Omit<User, 'id' | 'createdAt'>): Promise<User> {
-    // 0. DRY RUN: Check if user with this email already exists locally or in Supabase
-    // This is the CRITICAL fix for the "Data Breach" scenario
-    const existingLocalUser = this.users.find(u => u.email === user.email);
-    if (existingLocalUser) {
-      throw new Error(`A user with email ${user.email} already exists (local). Use a unique email.`);
+    // 0. DRY RUN: Check if user with this email already exists locally (skip if Supabase is active)
+    if (!isSupabaseConfigured()) {
+      const existingLocalUser = this.users.find(u => u.email === user.email);
+      if (existingLocalUser) {
+        throw new Error(`A user with email ${user.email} already exists (local). Use a unique email.`);
+      }
     }
 
     // Try Supabase first
@@ -722,33 +775,49 @@ export class MockDatabase {
       try {
         const { data: existingSupaUser } = await supabase
           .from('users')
-          .select('id')
+          .select('*')
           .eq('email', user.email)
           .maybeSingle();
 
+        let data, error;
+
         if (existingSupaUser) {
-          throw new Error(`A user with email ${user.email} already exists (cloud). Use a unique email.`);
+          // Update existing user instead of throwing
+          const { data: updatedData, error: updateError } = await supabase
+            .from('users')
+            .update({
+              role: user.role,
+              society_id: user.societyId,
+              is_active: user.isActive ?? true
+            })
+            .eq('id', existingSupaUser.id)
+            .select()
+            .single();
+
+          data = updatedData;
+          error = updateError;
+        } else {
+          // Insert new user
+          const { data: insertedData, error: insertError } = await supabase
+            .from('users')
+            .insert([{
+              email: user.email,
+              password: user.password,
+              role: user.role,
+              society_id: user.societyId,
+              is_first_login: user.isFirstLogin,
+              is_active: user.isActive ?? true
+            }])
+            .select()
+            .single();
+
+          data = insertedData;
+          error = insertError;
         }
 
-        const { data, error } = await supabase
-          .from('users')
-          .insert([{
-            email: user.email,
-            password: user.password,
-            role: user.role,
-            society_id: user.societyId,
-            is_first_login: user.isFirstLogin,
-            is_active: user.isActive ?? true
-          }])
-          .select()
-          .single();
-
         if (error) {
-          console.warn('Supabase insert error (users):', error.message, error.code);
-          if (error.code.startsWith('23') || error.code.startsWith('42') || error.code.startsWith('P')) {
-            throw new Error(`Database error creating user: ${error.message} (${error.code})`);
-          }
-          throw error;
+          console.warn('Supabase database error (users):', error.message, error.code);
+          throw new Error(`Database error handling user: ${error.message} (${error.code})`);
         }
 
         if (data) {
@@ -1242,10 +1311,12 @@ export class MockDatabase {
   }
 
   async createMember(member: Omit<Member, 'id' | 'dateJoined'>): Promise<Member> {
-    // Check if member already exists
-    const existingMember = this.members.find(m => m.email === member.email && m.societyId === member.societyId);
-    if (existingMember) {
-      throw new Error('A member with this email already exists in this society.');
+    // Check if member already exists (skip local if Supabase is active)
+    if (!isSupabaseConfigured()) {
+      const existingMember = this.members.find(m => m.email === member.email && m.societyId === member.societyId);
+      if (existingMember) {
+        throw new Error('A member with this email already exists in this society.');
+      }
     }
 
     // Try Supabase first
@@ -1476,20 +1547,22 @@ export class MockDatabase {
   }
 
   async createApplication(application: Omit<MembershipApplication, 'id' | 'appliedAt' | 'status'>): Promise<MembershipApplication> {
-    // Check if user is already a member
-    const existingMember = this.members.find(m => m.email === application.email && m.societyId === application.societyId);
-    if (existingMember) {
-      throw new Error('You are already a member of this society.');
-    }
+    // Check if user is already a member (skip local if Supabase is active)
+    if (!isSupabaseConfigured()) {
+      const existingMember = this.members.find(m => m.email === application.email && m.societyId === application.societyId);
+      if (existingMember) {
+        throw new Error('You are already a member of this society.');
+      }
 
-    // Check if application already exists
-    const existingApp = this.applications.find(a =>
-      a.email === application.email &&
-      a.societyId === application.societyId &&
-      (a.status === 'pending' || a.status === 'approved')
-    );
-    if (existingApp) {
-      throw new Error('An active application with this email already exists for this society.');
+      // Check if application already exists
+      const existingApp = this.applications.find(a =>
+        a.email === application.email &&
+        a.societyId === application.societyId &&
+        (a.status === 'pending' || a.status === 'approved')
+      );
+      if (existingApp) {
+        throw new Error('An active application with this email already exists for this society.');
+      }
     }
 
     // Try Supabase first
@@ -1956,7 +2029,7 @@ export class MockDatabase {
 
         if (data) {
           // Convert Supabase response to Transaction format
-          const transactions: Transaction[] = data.map(t => ({
+          const supaTransactions: Transaction[] = data.map(t => ({
             id: t.id,
             memberId: t.member_id,
             societyId: t.society_id || 'N/A',
@@ -1969,7 +2042,25 @@ export class MockDatabase {
             processedBy: t.processed_by || undefined
           }));
 
-          return transactions;
+          // Merge: Preserve local-only transactions that haven't been synced yet
+          const localOnly = this.transactions.filter(lt => 
+            lt.memberId === memberId &&
+            lt.date >= cutoffDate &&
+            lt.id.startsWith('loc-t') && // Only merge our explicitly local ones
+            !supaTransactions.some(st => st.referenceNumber === lt.referenceNumber)
+          );
+
+          const combined = [...supaTransactions, ...localOnly].sort((a, b) => 
+            b.date.getTime() - a.date.getTime()
+          );
+
+          // Update local cache for this member
+          // (Careful not to overwrite other members' local-only transactions)
+          const otherTransactions = this.transactions.filter(t => t.memberId !== memberId);
+          this.transactions = [...otherTransactions, ...combined];
+          this.saveToStorage();
+
+          return combined;
         }
       } catch (error) {
         console.warn('Error fetching member transactions from Supabase:', error);
@@ -2007,29 +2098,31 @@ export class MockDatabase {
           .single();
 
         if (error) {
-          console.warn('Supabase insert error:', error);
+          console.warn('Supabase insert error (transactions):', error);
           throw error;
         }
 
-        // Convert Supabase response to Transaction format
-        const newTransaction: Transaction = {
-          id: data.id,
-          memberId: data.member_id,
-          societyId: data.society_id,
-          type: data.type,
-          amount: data.amount,
-          description: data.description,
-          date: new Date(data.date),
-          balanceAfter: data.balance_after,
-          referenceNumber: data.reference_number || undefined,
-          processedBy: data.processed_by || undefined
-        };
+        if (data) {
+          // Convert Supabase response to Transaction format
+          const newTransaction: Transaction = {
+            id: data.id,
+            memberId: data.member_id,
+            societyId: data.society_id,
+            type: data.type,
+            amount: data.amount,
+            description: data.description,
+            date: new Date(data.date),
+            balanceAfter: data.balance_after,
+            referenceNumber: data.reference_number || undefined,
+            processedBy: data.processed_by || undefined
+          };
 
-        // Also save to localStorage as backup
-        this.transactions.push(newTransaction);
-        this.saveToStorage();
+          // Also save to localStorage as backup
+          this.transactions.push(newTransaction);
+          this.saveToStorage();
 
-        return newTransaction;
+          return newTransaction;
+        }
       } catch (error) {
         console.warn('Error creating transaction in Supabase:', error);
         // Fall through to localStorage fallback
@@ -2039,7 +2132,7 @@ export class MockDatabase {
     // Fallback to localStorage if Supabase is not configured or fails
     const newTransaction: Transaction = {
       ...transaction,
-      id: Date.now().toString(),
+      id: `loc-t-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
     };
     this.transactions.push(newTransaction);
     this.saveToStorage();
@@ -2169,20 +2262,119 @@ export class MockDatabase {
   }
 
   // Login session methods
-  getLoginSessions(): LoginSession[] {
-    return [...this.loginSessions].sort((a, b) => b.loginTime.getTime() - a.loginTime.getTime());
+  async getLoginSessions(societyId?: string): Promise<LoginSession[]> {
+    if (isSupabaseConfigured()) {
+      try {
+        let query = supabase.from('login_sessions').select('*');
+        if (societyId) {
+          query = query.eq('society_id', societyId);
+        }
+        const { data, error } = await query.order('login_time', { ascending: false });
+
+        if (!error && data) {
+          return data.map(s => ({
+            id: s.id,
+            userId: s.user_id,
+            userEmail: s.user_email,
+            userRole: s.user_role,
+            societyId: s.society_id,
+            loginTime: new Date(s.login_time),
+            logoutTime: s.logout_time ? new Date(s.logout_time) : undefined,
+            deviceInfo: s.device_info,
+            locationInfo: s.location_info,
+            sessionActive: s.session_active,
+            isSuspicious: s.is_suspicious,
+            suspiciousReasons: s.suspicious_reasons || undefined
+          }));
+        }
+      } catch (error) {
+        console.warn('Supabase fetch error for login sessions:', error);
+      }
+    }
+
+    let results = this.loginSessions;
+    if (societyId) {
+      results = results.filter(s => s.societyId === societyId);
+    }
+    return [...results].sort((a, b) => b.loginTime.getTime() - a.loginTime.getTime());
   }
 
-  getLoginSessionsByUser(userId: string): LoginSession[] {
-    return this.loginSessions
-      .filter(session => session.userId === userId)
-      .sort((a, b) => b.loginTime.getTime() - a.loginTime.getTime());
+  async getLoginSessionsByUser(userId: string, societyId?: string): Promise<LoginSession[]> {
+    if (isSupabaseConfigured()) {
+      try {
+        let query = supabase.from('login_sessions').select('*').eq('user_id', userId);
+        if (societyId) {
+          query = query.eq('society_id', societyId);
+        }
+        const { data, error } = await query.order('login_time', { ascending: false });
+
+        if (!error && data) {
+          return data.map(s => ({
+            id: s.id,
+            userId: s.user_id,
+            userEmail: s.user_email,
+            userRole: s.user_role,
+            societyId: s.society_id,
+            loginTime: new Date(s.login_time),
+            logoutTime: s.logout_time ? new Date(s.logout_time) : undefined,
+            deviceInfo: s.device_info,
+            locationInfo: s.location_info,
+            sessionActive: s.session_active,
+            isSuspicious: s.is_suspicious,
+            suspiciousReasons: s.suspicious_reasons || undefined
+          }));
+        }
+      } catch (error) {
+        console.warn('Supabase fetch error for user login sessions:', error);
+      }
+    }
+
+    let results = this.loginSessions.filter(session => session.userId === userId);
+    if (societyId) {
+      results = results.filter(s => s.societyId === societyId);
+    }
+    return results.sort((a, b) => b.loginTime.getTime() - a.loginTime.getTime());
   }
 
-  getAdminLoginSessions(limit?: number): LoginSession[] {
-    const adminSessions = this.loginSessions
-      .filter(session => session.userRole === 'admin')
-      .sort((a, b) => b.loginTime.getTime() - a.loginTime.getTime());
+  async getAdminLoginSessions(societyId?: string, limit?: number): Promise<LoginSession[]> {
+    if (isSupabaseConfigured()) {
+      try {
+        let query = supabase.from('login_sessions').select('*').eq('user_role', 'admin');
+        if (societyId) {
+          query = query.eq('society_id', societyId);
+        }
+        query = query.order('login_time', { ascending: false });
+        if (limit) {
+          query = query.limit(limit);
+        }
+        const { data, error } = await query;
+
+        if (!error && data) {
+          return data.map(s => ({
+            id: s.id,
+            userId: s.user_id,
+            userEmail: s.user_email,
+            userRole: s.user_role,
+            societyId: s.society_id,
+            loginTime: new Date(s.login_time),
+            logoutTime: s.logout_time ? new Date(s.logout_time) : undefined,
+            deviceInfo: s.device_info,
+            locationInfo: s.location_info,
+            sessionActive: s.session_active,
+            isSuspicious: s.is_suspicious,
+            suspiciousReasons: s.suspicious_reasons || undefined
+          }));
+        }
+      } catch (error) {
+        console.warn('Supabase fetch error for admin login sessions:', error);
+      }
+    }
+
+    let adminSessions = this.loginSessions.filter(session => session.userRole === 'admin');
+    if (societyId) {
+      adminSessions = adminSessions.filter(s => s.societyId === societyId);
+    }
+    adminSessions.sort((a, b) => b.loginTime.getTime() - a.loginTime.getTime());
 
     return limit ? adminSessions.slice(0, limit) : adminSessions;
   }
@@ -2191,7 +2383,7 @@ export class MockDatabase {
     const tempId = Date.now().toString() + Math.random().toString(36).substr(2, 9);
 
     // Check for suspicious activity
-    const userPreviousSessions = this.getLoginSessionsByUser(session.userId);
+    const userPreviousSessions = await this.getLoginSessionsByUser(session.userId, session.societyId);
     const suspiciousReasons: string[] = [];
 
     if (userPreviousSessions.length > 0) {
@@ -2286,7 +2478,34 @@ export class MockDatabase {
     return newSession;
   }
 
-  updateLoginSession(id: string, updates: Partial<LoginSession>): LoginSession | undefined {
+  async updateLoginSession(id: string, updates: Partial<LoginSession>): Promise<LoginSession | undefined> {
+    if (isSupabaseConfigured()) {
+      try {
+        const { data, error } = await supabase
+          .from('login_sessions')
+          .update(updates)
+          .eq('id', id)
+          .select()
+          .single();
+
+        if (!error && data) {
+          const updated: LoginSession = {
+            ...data,
+            loginTime: new Date(data.login_time),
+            logoutTime: data.logout_time ? new Date(data.logout_time) : undefined
+          };
+          const index = this.loginSessions.findIndex(s => s.id === id);
+          if (index !== -1) {
+            this.loginSessions[index] = updated;
+            this.saveToStorage();
+          }
+          return updated;
+        }
+      } catch (error) {
+        console.warn('Error updating login session in Supabase:', error);
+      }
+    }
+
     const index = this.loginSessions.findIndex(session => session.id === id);
     if (index !== -1) {
       this.loginSessions[index] = { ...this.loginSessions[index], ...updates };
@@ -2296,12 +2515,29 @@ export class MockDatabase {
     return undefined;
   }
 
-  endLoginSession(sessionId: string): boolean {
+  async endLoginSession(sessionId: string): Promise<boolean> {
+    const logoutTime = new Date();
+    if (isSupabaseConfigured()) {
+      try {
+        const { error } = await supabase
+          .from('login_sessions')
+          .update({
+            logout_time: logoutTime.toISOString(),
+            session_active: false
+          })
+          .eq('id', sessionId);
+
+        if (error) throw error;
+      } catch (error) {
+        console.warn('Error ending login session in Supabase:', error);
+      }
+    }
+
     const index = this.loginSessions.findIndex(session => session.id === sessionId);
     if (index !== -1) {
       this.loginSessions[index] = {
         ...this.loginSessions[index],
-        logoutTime: new Date(),
+        logoutTime,
         sessionActive: false,
       };
       this.saveToStorage();
@@ -2871,19 +3107,98 @@ export class MockDatabase {
 
   private broadcastMessages: BroadcastMessage[] = this.loadKeyFromStorage<BroadcastMessage[]>('broadcastMessages') || [];
 
-  createBroadcastMessage(data: Omit<BroadcastMessage, 'id' | 'sentAt' | 'readBy'>): BroadcastMessage {
+  async createBroadcastMessage(data: Omit<BroadcastMessage, 'id' | 'sentAt' | 'readBy'>): Promise<BroadcastMessage> {
     const msg: BroadcastMessage = {
       ...data,
       id: `bm${Date.now()}`,
       sentAt: new Date(),
       readBy: [],
     };
+
+    if (isSupabaseConfigured()) {
+      try {
+        const { data: supaMsg, error } = await supabase.from('broadcast_messages').insert([{
+          society_id: msg.societyId,
+          subject: msg.subject,
+          body: msg.body,
+          sent_at: msg.sentAt.toISOString(),
+          sent_by: msg.sentBy,
+          read_by: [],
+          is_recurrent: msg.isRecurrent,
+          frequency: msg.frequency,
+          custom_days: msg.customDays,
+          next_scheduled_at: msg.nextScheduledAt?.toISOString()
+        }]).select().single();
+
+        if (!error && supaMsg) {
+          console.log(`MockDatabase: Created broadcast message in Supabase with ID: ${supaMsg.id}`);
+          msg.id = supaMsg.id;
+        }
+      } catch (err) {
+        console.warn('Supabase broadcast insert error:', err);
+      }
+    }
+
+    console.log(`MockDatabase: Saving broadcast message locally for society: ${msg.societyId}`);
     this.broadcastMessages.push(msg);
     this.saveCollectionToStorage('broadcastMessages', this.broadcastMessages);
     return msg;
   }
 
-  getBroadcastMessages(societyId?: string): BroadcastMessage[] {
+  async getBroadcastMessages(societyId?: string): Promise<BroadcastMessage[]> {
+    if (isSupabaseConfigured()) {
+      try {
+        let query = supabase.from('broadcast_messages').select('*');
+        if (societyId) {
+          query = query.eq('society_id', societyId);
+        }
+        const { data, error } = await query.order('sent_at', { ascending: false });
+
+        if (error) throw error;
+        if (data) {
+          console.log(`MockDatabase: Fetched ${data.length} broadcasts for society ${societyId} from Supabase`);
+          const supaMessages: BroadcastMessage[] = data.map(m => ({
+            id: m.id,
+            societyId: m.society_id,
+            subject: m.subject,
+            body: m.body,
+            sentAt: new Date(m.sent_at),
+            sentBy: m.sent_by,
+            readBy: m.read_by || [],
+            isRecurrent: m.is_recurrent,
+            frequency: m.frequency,
+            customDays: m.custom_days,
+            nextScheduledAt: m.next_scheduled_at ? new Date(m.next_scheduled_at) : undefined
+          }));
+
+          // Merge: Preserve local readBy if it's more up-to-date
+          // ALSO: Preserve local-only messages that haven't been synced yet
+          const localOnly = this.broadcastMessages.filter(lm => 
+            !supaMessages.some(sm => sm.id === lm.id) && lm.id.startsWith('bm')
+          );
+          
+          supaMessages.forEach(sm => {
+            const local = this.broadcastMessages.find(lm => lm.id === sm.id);
+            if (local && local.readBy.length > sm.readBy.length) {
+              sm.readBy = local.readBy;
+            }
+          });
+
+          const combined = [...supaMessages, ...localOnly].sort((a, b) => 
+            new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime()
+          );
+
+          // Update local cache
+          this.broadcastMessages = combined;
+          this.saveCollectionToStorage('broadcastMessages', this.broadcastMessages);
+          
+          return combined;
+        }
+      } catch (err) {
+        console.warn('Supabase broadcast fetch error:', err);
+      }
+    }
+
     let results = this.broadcastMessages;
     if (societyId) {
       results = results.filter(m => m.societyId === societyId);
@@ -2893,11 +3208,152 @@ export class MockDatabase {
       .sort((a, b) => b.sentAt.getTime() - a.sentAt.getTime());
   }
 
-  markBroadcastRead(msgId: string, memberId: string): void {
-    const idx = this.broadcastMessages.findIndex(m => m.id === msgId);
-    if (idx !== -1 && !this.broadcastMessages[idx].readBy.includes(memberId)) {
-      this.broadcastMessages[idx].readBy.push(memberId);
-      this.saveCollectionToStorage('broadcastMessages', this.broadcastMessages);
+  async markBroadcastRead(messageId: string, memberId: string): Promise<void> {
+    console.log(`MockDatabase: Attempting to mark broadcast ${messageId} as read by member ${memberId}`);
+    let msg = this.broadcastMessages.find(m => m.id === messageId);
+
+    // If not in local cache, try to fetch current state from Supabase first
+    if (!msg && isSupabaseConfigured()) {
+      console.log(`MockDatabase: Broadcast ${messageId} not in cache, fetching from Supabase...`);
+      try {
+        const { data, error } = await supabase
+          .from('broadcast_messages')
+          .select('*')
+          .eq('id', messageId)
+          .single();
+
+        if (data) {
+          msg = {
+            id: data.id,
+            societyId: data.society_id,
+            subject: data.subject,
+            body: data.body,
+            sentAt: new Date(data.sent_at),
+            sentBy: data.sent_by,
+            readBy: data.read_by || [],
+            isRecurrent: data.is_recurrent,
+            frequency: data.frequency,
+            customDays: data.custom_days,
+            nextScheduledAt: data.next_scheduled_at ? new Date(data.next_scheduled_at) : undefined
+          };
+          this.broadcastMessages.push(msg);
+          console.log(`MockDatabase: Fetched broadcast from Supabase. Current readBy:`, msg.readBy);
+        }
+      } catch (err) {
+        console.warn('Supabase fetch in markBroadcastRead error:', err);
+      }
+    }
+
+    if (msg) {
+      if (!msg.readBy.includes(memberId)) {
+        msg.readBy.push(memberId);
+        this.saveCollectionToStorage('broadcastMessages', this.broadcastMessages);
+
+        if (isSupabaseConfigured()) {
+          try {
+            console.log(`MockDatabase: Updating Supabase read_by for ${messageId} to:`, msg.readBy);
+            const { error } = await supabase
+              .from('broadcast_messages')
+              .update({ read_by: msg.readBy })
+              .eq('id', messageId);
+            if (error) throw error;
+            console.log(`MockDatabase: Successfully updated Supabase.`);
+          } catch (err) {
+            console.warn('Supabase markBroadcastRead error:', err);
+          }
+        }
+      } else {
+        console.log(`MockDatabase: Member ${memberId} already in readBy for ${messageId}`);
+      }
+    } else {
+      console.warn(`MockDatabase: Broadcast ${messageId} not found even after Supabase check.`);
+    }
+  }
+
+  /**
+   * Processes recurrent broadcasts to "automatically" send new instances
+   * This is typically called by an admin dashboard or a simulated background process
+   */
+  async processRecurrentBroadcasts(societyId: string): Promise<void> {
+    console.log(`MockDatabase: Processing recurrent broadcasts for society: ${societyId}`);
+    const now = new Date();
+
+    if (isSupabaseConfigured()) {
+      try {
+        const { data, error } = await supabase
+          .from('broadcast_messages')
+          .select('*')
+          .eq('society_id', societyId)
+          .eq('is_recurrent', true)
+          .lte('next_scheduled_at', now.toISOString());
+
+        if (error) {
+          if (error.code === '42703') {
+            console.warn('MockDatabase: Supabase schema mismatch (missing columns). Skipping recurrent processing.');
+            return;
+          }
+          throw error;
+        }
+        if (data && data.length > 0) {
+          for (const template of data) {
+            console.log(`MockDatabase: Recurrence triggered for "${template.subject}"`);
+
+            // Create new broadcast instance (the actual message members see)
+            const newMsg: BroadcastMessage = {
+              id: '', // Will be set by create method
+              societyId: template.society_id,
+              subject: template.subject,
+              body: template.body,
+              sentAt: now,
+              sentBy: template.sent_by,
+              readBy: [],
+              isRecurrent: false // Instance itself is NOT recurrent
+            };
+
+            await this.createBroadcastMessage(newMsg);
+
+            // Update the template with next scheduled date
+            const nextDate = this.calculateNextRecurrence(new Date(template.next_scheduled_at), template.frequency, template.custom_days);
+
+            await supabase
+              .from('broadcast_messages')
+              .update({
+                next_scheduled_at: nextDate?.toISOString(),
+                sent_at: now.toISOString() // Record the last run time
+              })
+              .eq('id', template.id);
+          }
+        }
+      } catch (err) {
+        console.warn('Supabase processRecurrentBroadcasts error:', err);
+      }
+    }
+  }
+
+  private calculateNextRecurrence(current: Date, frequency: string, customDays?: number): Date | null {
+    const next = new Date(current);
+    if (frequency === 'weekly') {
+      next.setDate(next.getDate() + 7);
+    } else if (frequency === 'monthly') {
+      next.setMonth(next.getMonth() + 1);
+    } else if (frequency === 'custom' && customDays) {
+      next.setDate(next.getDate() + customDays);
+    } else {
+      return null;
+    }
+    return next;
+  }
+
+  async deleteBroadcastMessage(id: string): Promise<void> {
+    this.broadcastMessages = this.broadcastMessages.filter(m => m.id !== id);
+    this.saveCollectionToStorage('broadcastMessages', this.broadcastMessages);
+
+    if (isSupabaseConfigured()) {
+      try {
+        await supabase.from('broadcast_messages').delete().eq('id', id);
+      } catch (err) {
+        console.warn('Supabase deleteBroadcastMessage error:', err);
+      }
     }
   }
 
@@ -2905,7 +3361,7 @@ export class MockDatabase {
 
   private levies: Levy[] = this.loadKeyFromStorage<Levy[]>('levies') || [];
 
-  createLevy(data: Omit<Levy, 'id' | 'imposedAt' | 'status'>): Levy {
+  async createLevy(data: Omit<Levy, 'id' | 'imposedAt' | 'status'>): Promise<Levy> {
     const levy: Levy = {
       ...data,
       id: `lv${Date.now()}`,
@@ -2914,6 +3370,33 @@ export class MockDatabase {
     };
     this.levies.push(levy);
     this.saveCollectionToStorage('levies', this.levies);
+
+    // Update members and create transactions
+    const targetIds = data.memberIds;
+
+    await Promise.all(targetIds.map(async (memberId) => {
+      const member = await this.getMemberById(memberId);
+      if (member) {
+        const newDuesBalance = (member.societyDues || 0) + data.amount;
+
+        // Update member balance
+        await this.updateMember(memberId, { societyDues: newDuesBalance });
+
+        // Create dues_charge transaction with unique reference for sync tracking
+        await this.createTransaction({
+          memberId,
+          societyId: data.societyId,
+          type: 'dues_charge',
+          amount: data.amount,
+          description: data.description,
+          date: new Date(),
+          balanceAfter: newDuesBalance,
+          referenceNumber: `LVY-${levy.id}-${memberId}`,
+          processedBy: 'admin'
+        });
+      }
+    }));
+
     return levy;
   }
 
@@ -2923,6 +3406,38 @@ export class MockDatabase {
       results = results.filter(l => l.societyId === societyId);
     }
     return results.map(l => ({ ...l, imposedAt: new Date(l.imposedAt) }));
+  }
+
+  async getLeviesByMember(memberId: string): Promise<Levy[]> {
+    if (isSupabaseConfigured()) {
+      try {
+        const { data, error } = await supabase
+          .from('levies')
+          .select('*')
+          .contains('member_ids', [memberId]);
+
+        if (!error && data) {
+          return data.map(l => ({
+            id: l.id,
+            societyId: l.society_id,
+            description: l.description,
+            amount: l.amount,
+            imposedAt: new Date(l.imposed_at),
+            imposedBy: l.imposed_by,
+            memberIds: l.member_ids || [],
+            targetAll: l.target_all || false,
+            status: l.status as 'active' | 'waived'
+          }));
+        }
+      } catch (err) {
+        console.warn('Supabase fetch error for member levies:', err);
+      }
+    }
+
+    return this.levies
+      .filter(l => l.memberIds.includes(memberId) || l.targetAll)
+      .map(l => ({ ...l, imposedAt: new Date(l.imposedAt) }))
+      .sort((a, b) => b.imposedAt.getTime() - a.imposedAt.getTime());
   }
 
   // ─── Member Status ─────────────────────────────────────────────────────────

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { CheckCircle2, AlertCircle, Copy, Database } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Copy, Database, ShieldAlert } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 export default function DatabaseSetupPage() {
@@ -12,12 +12,37 @@ export default function DatabaseSetupPage() {
   const [checking, setChecking] = useState(false);
   const [columnExists, setColumnExists] = useState<boolean | null>(null);
 
-  const migrationSQL = `-- Add loan_eligibility_override column to members table
-ALTER TABLE members
-ADD COLUMN IF NOT EXISTS loan_eligibility_override BOOLEAN DEFAULT false;
+  const migrationSQL = `-- 🚨 URGENT FIX: Type Mismatch Resolution 🚨
+-- The application uses custom string IDs (e.g., 'soc123', 'u123'). 
+-- If you used UUID types previously, please execute this fix to convert them to TEXT.
 
--- Add comment explaining the column
-COMMENT ON COLUMN members.loan_eligibility_override IS 'Super admin override to bypass 6-month loan eligibility requirement';`;
+-- 1. Correct Users Table
+ALTER TABLE public.users 
+ALTER COLUMN society_id TYPE TEXT;
+
+ALTER TABLE public.users
+ADD COLUMN IF NOT EXISTS is_first_login BOOLEAN DEFAULT TRUE,
+ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
+
+-- 2. Correct Members Table
+ALTER TABLE public.members 
+ALTER COLUMN user_id TYPE TEXT,
+ALTER COLUMN society_id TYPE TEXT;
+
+ALTER TABLE public.members
+ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';
+
+-- 3. Open up RLS for new tables
+ALTER TABLE public.societies ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Public societies access" ON public.societies;
+CREATE POLICY "Public societies access" ON public.societies FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Public users access" ON public.users;
+CREATE POLICY "Public users access" ON public.users FOR ALL USING (true) WITH CHECK (true);
+
+-- 4. Legacy Support (Bypass 6-month check)
+ALTER TABLE public.members ADD COLUMN IF NOT EXISTS loan_eligibility_override BOOLEAN DEFAULT FALSE;`;
 
   const checkColumn = async () => {
     setChecking(true);
@@ -116,14 +141,12 @@ COMMENT ON COLUMN members.loan_eligibility_override IS 'Super admin override to 
           </Button>
 
           {columnExists !== null && (
-            <div className={`p-4 rounded-lg border ${
-              columnExists
-                ? 'bg-green-50 border-green-200'
-                : 'bg-yellow-50 border-yellow-200'
-            }`}>
-              <p className={`font-medium ${
-                columnExists ? 'text-green-900' : 'text-yellow-900'
+            <div className={`p-4 rounded-lg border ${columnExists
+              ? 'bg-green-50 border-green-200'
+              : 'bg-yellow-50 border-yellow-200'
               }`}>
+              <p className={`font-medium ${columnExists ? 'text-green-900' : 'text-yellow-900'
+                }`}>
                 {columnExists
                   ? '✅ Column exists - your database is ready!'
                   : '⚠️ Column missing - please run the migration below'}
@@ -183,6 +206,32 @@ COMMENT ON COLUMN members.loan_eligibility_override IS 'Super admin override to 
         </Card>
       )}
 
+      <Card className="border-rose-200 bg-rose-50/50">
+        <CardHeader>
+          <CardTitle className="text-rose-900 flex items-center gap-2">
+            <ShieldAlert className="h-5 w-5" />
+            Local Data Management
+          </CardTitle>
+          <CardDescription>
+            Clear "stuck" local records that failed to sync with Supabase
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-rose-800">
+            If you see data in the portal that isn't in your Supabase dashboard, it means the sync failed (likely due to the ID type mismatch).
+            After running the Fix Script, click below to clear your local cache and start fresh.
+          </p>
+          <Button
+            variant="destructive"
+            onClick={() => {
+              localStorage.clear();
+              window.location.reload();
+            }}
+          >
+            Clear Local Cache & Reload
+          </Button>
+        </CardContent>
+      </Card>
       <Card className="bg-blue-50 border-blue-200">
         <CardHeader>
           <CardTitle className="text-blue-900">What This Column Does</CardTitle>

@@ -14,7 +14,7 @@ const plusJakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "OsuOlale - Cooperative Society Management",
+  title: "Coopkonnect | Cooperative Management Platform",
   description: "A comprehensive management system for cooperative societies",
 };
 

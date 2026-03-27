@@ -12,10 +12,13 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { db } from '@/lib/mock-data';
 import { getLoanSummary, formatNaira } from '@/lib/loan-utils';
-import { Member, User, Transaction } from '@/types';
+import { Member, User, Transaction, Society } from '@/types';
 import { Users, FileText, Activity, ShieldCheck, ArrowRight } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function MembersPage() {
+  const { user } = useAuth();
+  const [society, setSociety] = useState<Society | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
@@ -38,17 +41,18 @@ export default function MembersPage() {
     savingsBalance: '0',
   });
 
-  // Edit functionality moved to Financial Updates page
-
   useEffect(() => {
-    loadMembers();
-  }, []);
+    if (user?.societyId) {
+      loadMembers();
+      db.getSocietyById(user.societyId).then(soc => setSociety(soc || null));
+    }
+  }, [user]);
 
   // Auto-generate sequential member number when add dialog opens
   useEffect(() => {
-    if (!isAddingMember) return;
+    if (!isAddingMember || !user?.societyId) return;
     const generateNextNumber = async () => {
-      const allMembers = await db.getMembers();
+      const allMembers = await db.getMembers(user.societyId);
       // Extract numeric suffixes from existing member numbers (e.g. "OSU001" → 1)
       const nums = allMembers
         .map(m => parseInt(m.memberNumber.replace(/\D/g, ''), 10))
@@ -59,10 +63,11 @@ export default function MembersPage() {
       setNewMemberForm(prev => ({ ...prev, memberNumber: generated }));
     };
     generateNextNumber();
-  }, [isAddingMember]);
+  }, [isAddingMember, user]);
 
   const loadMembers = async () => {
-    const allMembers = await db.getMembers();
+    if (!user?.societyId) return;
+    const allMembers = await db.getMembers(user.societyId);
     setMembers(allMembers);
   };
 
@@ -97,31 +102,24 @@ export default function MembersPage() {
     setSuccess('');
 
     try {
-      // Create user account first
-      const user = await db.createUser({
-        email: newMemberForm.email,
-        password: newMemberForm.password,
-        role: 'member',
-        isFirstLogin: true,
-        societyId: 'soc1',
-      });
+      if (!user?.societyId) throw new Error('Society association not found');
 
-      // Create member record
-      const member = await db.createMember({
-        userId: user.id,
-        societyId: 'soc1',
-        memberNumber: newMemberForm.memberNumber,
+      const member = await db.createMemberWithUser({
         firstName: newMemberForm.firstName,
         lastName: newMemberForm.lastName,
         email: newMemberForm.email,
         phone: newMemberForm.phone,
         address: newMemberForm.address,
-        status: 'active',
-        sharesBalance: parseFloat(newMemberForm.sharesBalance),
-        savingsBalance: parseFloat(newMemberForm.savingsBalance),
-        loanBalance: 0,
-        interestBalance: 0,
-        societyDues: 0,
+        societyId: user.societyId,
+        sharesBalance: parseFloat(newMemberForm.sharesBalance) || 0,
+        savingsBalance: parseFloat(newMemberForm.savingsBalance) || 0,
+        occupation: '', // Default for now
+        annualIncome: 0, // Default for now
+        // Casting to any to pass password and memberNumber which createMemberWithUser supports internally
+        ...({
+          password: newMemberForm.password,
+          memberNumber: newMemberForm.memberNumber
+        } as any)
       });
 
       setSuccess('Member added successfully');
@@ -139,8 +137,9 @@ export default function MembersPage() {
       });
       setIsAddingMember(false);
       loadMembers();
-    } catch (err) {
-      setError('Failed to add member');
+    } catch (err: any) {
+      console.error('Add member error:', err);
+      setError(err.message || 'Failed to add member');
     }
   };
 

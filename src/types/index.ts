@@ -124,6 +124,12 @@ export interface BroadcastMessage {
   sentAt: Date;
   sentBy: string;
   readBy: string[];  // memberIds who dismissed it
+  
+  // Recurrence fields
+  isRecurrent?: boolean;
+  frequency?: 'once' | 'weekly' | 'monthly' | 'custom';
+  customDays?: number; // Days interval for 'custom'
+  nextScheduledAt?: Date;
 }
 
 /** Levy or due imposed on one or more members */
@@ -143,7 +149,7 @@ export interface Transaction {
   id: string;
   memberId: string;
   societyId: string; // Which society this transaction belongs to
-  type: 'shares_deposit' | 'shares_withdrawal' | 'savings_deposit' | 'savings_withdrawal' | 'loan_disbursement' | 'loan_payment' | 'interest_charge' | 'interest_payment' | 'dues_payment' | 'profile_update';
+  type: 'shares_deposit' | 'shares_withdrawal' | 'savings_deposit' | 'savings_withdrawal' | 'loan_disbursement' | 'loan_payment' | 'interest_charge' | 'interest_payment' | 'dues_charge' | 'dues_payment' | 'profile_update';
   amount: number;
   description: string;
   date: Date;

@@ -1,0 +1,2 @@
+src/lib/loan-utils.ts(1,24): error TS2307: Cannot find module '@/types' or its corresponding type declarations.
+src/lib/mock-data.ts(1,155): error TS2307: Cannot find module '@/types' or its corresponding type declarations.

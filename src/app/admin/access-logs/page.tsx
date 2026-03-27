@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { db } from '@/lib/mock-data';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { LoginSession } from '@/types';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function AccessLogsPage() {
   const [sessions, setSessions] = useState<LoginSession[]>([]);
@@ -16,20 +17,24 @@ export default function AccessLogsPage() {
   const [isCleaningUp, setIsCleaningUp] = useState(false);
   const [cleanupMessage, setCleanupMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  const { user } = useAuth();
+
   useEffect(() => {
     loadSessions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter]);
+  }, [filter, user?.societyId]);
 
-  const loadSessions = () => {
-    let loadedSessions: LoginSession[];
+  const loadSessions = async () => {
+    let loadedSessions: LoginSession[] = [];
+    const societyId = user?.societyId;
 
     if (filter === 'admin') {
-      loadedSessions = db.getAdminLoginSessions();
+      loadedSessions = await db.getAdminLoginSessions(societyId);
     } else if (filter === 'suspicious') {
-      loadedSessions = db.getLoginSessions().filter(s => s.isSuspicious);
+      const all = await db.getLoginSessions(societyId);
+      loadedSessions = all.filter(s => s.isSuspicious);
     } else {
-      loadedSessions = db.getLoginSessions();
+      loadedSessions = await db.getLoginSessions(societyId);
     }
 
     setSessions(loadedSessions);
@@ -59,7 +64,7 @@ export default function AccessLogsPage() {
       }
 
       // Clean up from localStorage
-      const allSessions = db.getLoginSessions();
+      const allSessions = await db.getLoginSessions(user?.societyId);
       const memberSessions = allSessions.filter(s => s.userRole === 'member');
 
       // Remove member sessions from localStorage

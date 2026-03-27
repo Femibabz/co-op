@@ -15,13 +15,13 @@ export default function UsersManagementPage() {
     loadUsers();
   }, []);
 
-  const loadUsers = () => {
-    const allUsers = db.getAllUsers();
+  const loadUsers = async () => {
+    const allUsers = await db.getAllUsers();
     setUsers(allUsers);
   };
 
-  const toggleUserStatus = (userId: string) => {
-    db.toggleUserActive(userId);
+  const toggleUserStatus = async (userId: string) => {
+    await db.toggleUserActive(userId);
     loadUsers();
   };
 

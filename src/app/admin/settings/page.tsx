@@ -18,8 +18,10 @@ import {
     CheckCircle2, AlertCircle, Settings, Percent, TrendingUp, Users, Calendar,
     ShieldCheck, Megaphone, Receipt, UserX, UserMinus
 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function SocietySettingsPage() {
+    const { user } = useAuth();
     const [settings, setSettings] = useState<SocietySettings | null>(null);
     const [members, setMembers] = useState<Member[]>([]);
 
@@ -48,8 +50,12 @@ export default function SocietySettingsPage() {
     // ── Broadcast form ────────────────────────────────────────────────────────
     const [broadcastSubject, setBroadcastSubject] = useState('');
     const [broadcastBody, setBroadcastBody] = useState('');
+    const [isRecurrent, setIsRecurrent] = useState(false);
+    const [frequency, setFrequency] = useState<'once' | 'weekly' | 'monthly' | 'custom'>('once');
+    const [customDays, setCustomDays] = useState('7');
     const [broadcastMsg, setBroadcastMsg] = useState('');
     const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
+    const [broadcasts, setBroadcasts] = useState<any[]>([]);
 
     // ── Member status form ───────────────────────────────────────────────────
     const [statusMemberId, setStatusMemberId] = useState('');
@@ -59,7 +65,8 @@ export default function SocietySettingsPage() {
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
     const loadData = useCallback(async () => {
-        const s = getSocietySettings();
+        if (!user?.societyId) return;
+        const s = getSocietySettings(user.societyId);
         setSettings(s);
         setForm({
             societyName: s.societyName,
@@ -71,9 +78,16 @@ export default function SocietySettingsPage() {
             membershipGuarantorCount: String(s.membershipGuarantorCount),
             maxActiveGuaranteesPerMember: String(s.maxActiveGuaranteesPerMember),
         });
-        const allMembers = await db.getMembers();
+        const allMembers = await db.getMembers(user.societyId);
         setMembers(allMembers);
-    }, []);
+        
+        // Process any pending recurrent broadcasts
+        await db.processRecurrentBroadcasts(user.societyId);
+        
+        // Load all broadcasts for management
+        const b = await db.getBroadcastMessages(user.societyId);
+        setBroadcasts(b);
+    }, [user?.societyId]);
 
     useEffect(() => { loadData(); }, [loadData]);
 
@@ -109,7 +123,7 @@ export default function SocietySettingsPage() {
             loanGuarantorCount: loanG,
             membershipGuarantorCount: memberG,
             maxActiveGuaranteesPerMember: maxG,
-        });
+        }, user?.societyId);
         setSettings(saved);
         setIsDirty(false);
         setCoreMessage({ type: 'success', text: 'Settings saved successfully.' });
@@ -125,13 +139,16 @@ export default function SocietySettingsPage() {
         setIsImposingLevy(true);
         setLevyMsg('');
         try {
-            const targetIds = levyTarget === 'all' ? members.map(m => m.id) : levyMemberIds;
-            db.createLevy({ description: levyDesc, amount, imposedBy: 'admin', memberIds: targetIds, targetAll: levyTarget === 'all' });
-            // Add to each member's societyDues
-            await Promise.all(targetIds.map(id => {
-                const member = members.find(m => m.id === id);
-                if (member) return db.updateMember(id, { societyDues: member.societyDues + amount });
-            }));
+            const targetIds = levyTarget === 'all' ? members.filter(m => m.status === 'active').map(m => m.id) : levyMemberIds;
+            await db.createLevy({
+                societyId: user?.societyId || 'soc1',
+                description: levyDesc,
+                amount,
+                imposedBy: 'admin',
+                memberIds: targetIds,
+                targetAll: levyTarget === 'all'
+            });
+
             setLevyMsg(`✓ Levy of ${formatNaira(amount)} imposed on ${targetIds.length} member(s).`);
             setLevyAmount(''); setLevyDesc(''); setLevyMemberIds([]);
             loadData();
@@ -149,11 +166,42 @@ export default function SocietySettingsPage() {
         setIsSendingBroadcast(true);
         setBroadcastMsg('');
         try {
-            db.createBroadcastMessage({ subject: broadcastSubject, body: broadcastBody, sentBy: 'admin' });
-            setBroadcastMsg(`✓ Message sent to all ${members.length} members.`);
+            const nextScheduledAt = isRecurrent ? calculateInitialNextDate(frequency, parseInt(customDays)) : undefined;
+            
+            await db.createBroadcastMessage({
+                societyId: user?.societyId || 'soc1',
+                subject: broadcastSubject,
+                body: broadcastBody,
+                sentBy: 'admin',
+                isRecurrent,
+                frequency,
+                customDays: frequency === 'custom' ? parseInt(customDays) : undefined,
+                nextScheduledAt
+            });
+            setBroadcastMsg(`✓ ${isRecurrent ? 'Recurrent broadcast scheduled' : 'Message sent to all members'}.`);
             setBroadcastSubject(''); setBroadcastBody('');
+            setIsRecurrent(false); setFrequency('once');
+            loadData(); // Refresh list
         } catch { setBroadcastMsg('Failed to send message.'); }
         finally { setIsSendingBroadcast(false); }
+    };
+
+    const handleDeleteBroadcast = async (id: string) => {
+        if (!confirm('Are you sure you want to delete this broadcast?')) return;
+        try {
+            await db.deleteBroadcastMessage(id);
+            setBroadcasts(prev => prev.filter(b => b.id !== id));
+        } catch {
+            setBroadcastMsg('Failed to delete broadcast.');
+        }
+    };
+
+    const calculateInitialNextDate = (freq: string, days: number) => {
+        const next = new Date();
+        if (freq === 'weekly') next.setDate(next.getDate() + 7);
+        else if (freq === 'monthly') next.setMonth(next.getMonth() + 1);
+        else if (freq === 'custom') next.setDate(next.getDate() + days);
+        return next;
     };
 
     // ── Member status ─────────────────────────────────────────────────────────
@@ -412,11 +460,75 @@ export default function SocietySettingsPage() {
                         <Textarea id="broadcastBody" placeholder="Write your message to all members..." rows={4}
                             value={broadcastBody} onChange={e => setBroadcastBody(e.target.value)} />
                     </div>
-                    <div className="flex justify-end">
-                        <Button onClick={handleSendBroadcast} disabled={isSendingBroadcast} className="gap-2">
-                            <Megaphone className="h-4 w-4" /> {isSendingBroadcast ? 'Sending...' : `Send to All Members`}
+                    <div className="space-y-4 pt-2 border-t border-slate-100">
+                        <div className="flex items-center gap-2">
+                            <input 
+                                type="checkbox" 
+                                id="isRecurrent" 
+                                checked={isRecurrent} 
+                                onChange={(e) => {
+                                    setIsRecurrent(e.target.checked);
+                                    if(e.target.checked && frequency === 'once') setFrequency('weekly');
+                                }}
+                                className="w-4 h-4 accent-sky-600"
+                            />
+                            <Label htmlFor="isRecurrent" className="font-bold text-slate-700 cursor-pointer">Set as Recurrent Message</Label>
+                        </div>
+
+                        {isRecurrent && (
+                            <div className="grid gap-4 sm:grid-cols-2 bg-slate-50 p-4 rounded-xl border border-slate-200 animate-in fade-in slide-in-from-top-2">
+                                <div className="space-y-2">
+                                    <Label>Frequency</Label>
+                                    <Select value={frequency} onValueChange={(v) => setFrequency(v as any)}>
+                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="weekly">Every Week</SelectItem>
+                                            <SelectItem value="monthly">Every Month</SelectItem>
+                                            <SelectItem value="custom">Custom Interval</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                {frequency === 'custom' && (
+                                    <div className="space-y-2">
+                                        <Label>Repeat Every (Days)</Label>
+                                        <Input type="number" min="1" max="365" value={customDays} onChange={e => setCustomDays(e.target.value)} />
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                    <div className="flex justify-end pt-2">
+                        <Button onClick={handleSendBroadcast} disabled={isSendingBroadcast} className="gap-2 bg-sky-600 hover:bg-sky-700">
+                            <Megaphone className="h-4 w-4" /> {isSendingBroadcast ? 'Sending...' : (isRecurrent ? 'Schedule Recurrent Broadcast' : 'Send One-Time Broadcast')}
                         </Button>
                     </div>
+
+                    {broadcasts.filter(b => b.isRecurrent).length > 0 && (
+                        <div className="mt-8 space-y-4 pt-6 border-t border-slate-100">
+                            <h4 className="text-sm font-bold text-slate-700 uppercase tracking-tight">Active Recurrent Schedules</h4>
+                            <div className="space-y-2">
+                                {broadcasts.filter(b => b.isRecurrent).map(b => (
+                                    <div key={b.id} className="flex items-center justify-between p-3 rounded-xl border bg-slate-50/50">
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-bold text-slate-900 truncate">{b.subject}</p>
+                                            <p className="text-xs text-slate-500">
+                                                Frequency: <span className="capitalize">{b.frequency}</span> • 
+                                                Next: {b.nextScheduledAt?.toLocaleDateString()}
+                                            </p>
+                                        </div>
+                                        <Button 
+                                            variant="ghost" 
+                                            size="sm" 
+                                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                            onClick={() => handleDeleteBroadcast(b.id)}
+                                        >
+                                            Stop
+                                        </Button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
 

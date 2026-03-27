@@ -242,7 +242,7 @@ export default function FinancialUpdatesPage() {
             societyId: selectedMember.societyId,
             type: 'dues_payment',
             amount: Math.abs(pendingUpdate.dues.delta),
-            description: `Payment: ${deltaForm.updateReason}`,
+            description: `Dues Payment: ${deltaForm.updateReason}`,
             date: new Date(),
             balanceAfter: newDues,
             referenceNumber: `${ref}-DP`,
