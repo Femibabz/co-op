@@ -17,6 +17,7 @@ const navItems = [
   { href: '/admin/members', label: 'Members', icon: Users },
   { href: '/admin/applications', label: 'Applications', icon: FileText },
   { href: '/admin/loans', label: 'Loans', icon: Coins },
+  { href: '/admin/transactions', label: 'Transactions', icon: Activity },
   { href: '/admin/process-payment', label: 'Payments', icon: CreditCard },
   { href: '/admin/financial-updates', label: 'Financial', icon: TrendingUp },
   { href: '/admin/bylaws', label: 'By-Laws', icon: BookOpen },

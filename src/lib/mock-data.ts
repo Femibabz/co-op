@@ -1064,6 +1064,7 @@ export class MockDatabase {
             lastInterestCalculationDate: m.last_interest_calculation_date
               ? new Date(m.last_interest_calculation_date)
               : undefined,
+            nextScheduledInterest: m.next_scheduled_interest,
             annualIncome: m.annual_income,
             loanEligibilityOverride: m.loan_eligibility_override,
             allowNewLoanWithBalance: m.allow_new_loan_with_balance
@@ -1131,6 +1132,10 @@ export class MockDatabase {
             loanDurationMonths: data.loan_duration_months,
             loanInterestRate: data.loan_interest_rate,
             monthlyLoanPayment: data.monthly_loan_payment,
+            lastInterestCalculationDate: data.last_interest_calculation_date
+              ? new Date(data.last_interest_calculation_date)
+              : undefined,
+            nextScheduledInterest: data.next_scheduled_interest,
             annualIncome: data.annual_income,
             loanEligibilityOverride: data.loan_eligibility_override,
             allowNewLoanWithBalance: data.allow_new_loan_with_balance
@@ -1195,6 +1200,8 @@ export class MockDatabase {
             loanDurationMonths: data.loan_duration_months,
             loanInterestRate: data.loan_interest_rate,
             monthlyLoanPayment: data.monthly_loan_payment,
+            lastInterestCalculationDate: data.last_interest_calculation_date ? new Date(data.last_interest_calculation_date) : undefined,
+            nextScheduledInterest: data.next_scheduled_interest,
             annualIncome: data.annual_income,
             loanEligibilityOverride: data.loan_eligibility_override,
             allowNewLoanWithBalance: data.allow_new_loan_with_balance
@@ -1243,6 +1250,7 @@ export class MockDatabase {
         if (updates.loanInterestRate !== undefined) updateData.loan_interest_rate = updates.loanInterestRate;
         if (updates.monthlyLoanPayment !== undefined) updateData.monthly_loan_payment = updates.monthlyLoanPayment;
         if (updates.annualIncome !== undefined) updateData.annual_income = updates.annualIncome;
+        if (updates.nextScheduledInterest !== undefined) updateData.next_scheduled_interest = updates.nextScheduledInterest;
         if (updates.loanEligibilityOverride !== undefined) updateData.loan_eligibility_override = updates.loanEligibilityOverride;
         if (updates.allowNewLoanWithBalance !== undefined) updateData.allow_new_loan_with_balance = updates.allowNewLoanWithBalance;
 
@@ -1280,6 +1288,8 @@ export class MockDatabase {
             loanDurationMonths: data.loan_duration_months,
             loanInterestRate: data.loan_interest_rate,
             monthlyLoanPayment: data.monthly_loan_payment,
+            lastInterestCalculationDate: data.last_interest_calculation_date ? new Date(data.last_interest_calculation_date) : undefined,
+            nextScheduledInterest: data.next_scheduled_interest,
             annualIncome: data.annual_income,
             loanEligibilityOverride: data.loan_eligibility_override,
             allowNewLoanWithBalance: data.allow_new_loan_with_balance
@@ -1355,6 +1365,7 @@ export class MockDatabase {
             loan_duration_months: member.loanDurationMonths,
             loan_interest_rate: member.loanInterestRate,
             monthly_loan_payment: member.monthlyLoanPayment,
+            next_scheduled_interest: member.nextScheduledInterest,
             annual_income: member.annualIncome,
             loan_eligibility_override: member.loanEligibilityOverride,
             allow_new_loan_with_balance: member.allowNewLoanWithBalance
@@ -1389,8 +1400,13 @@ export class MockDatabase {
           loanDurationMonths: data.loan_duration_months,
           loanInterestRate: data.loan_interest_rate,
           monthlyLoanPayment: data.monthly_loan_payment,
+          lastInterestCalculationDate: data.last_interest_calculation_date
+            ? new Date(data.last_interest_calculation_date)
+            : undefined,
+          nextScheduledInterest: data.next_scheduled_interest,
           annualIncome: data.annual_income,
-          loanEligibilityOverride: data.loan_eligibility_override
+          loanEligibilityOverride: data.loan_eligibility_override,
+          allowNewLoanWithBalance: data.allow_new_loan_with_balance
         };
 
         // Also save to localStorage as backup
@@ -1723,7 +1739,8 @@ export class MockDatabase {
               reviewedAt: loan.reviewed_at ? new Date(loan.reviewed_at) : undefined,
               reviewedBy: loan.reviewed_by || undefined,
               reviewNotes: loan.review_notes || undefined,
-              disbursedAt: loan.disbursed_at ? new Date(loan.disbursed_at) : undefined
+              disbursedAt: loan.disbursed_at ? new Date(loan.disbursed_at) : undefined,
+              documentUrl: loan.document_url || undefined
             };
           });
 
@@ -1777,7 +1794,8 @@ export class MockDatabase {
               reviewedAt: loan.reviewed_at ? new Date(loan.reviewed_at) : undefined,
               reviewedBy: loan.reviewed_by || undefined,
               reviewNotes: loan.review_notes || undefined,
-              disbursedAt: loan.disbursed_at ? new Date(loan.disbursed_at) : undefined
+              disbursedAt: loan.disbursed_at ? new Date(loan.disbursed_at) : undefined,
+              documentUrl: loan.document_url || undefined
             };
           });
 
@@ -1833,7 +1851,8 @@ export class MockDatabase {
             reviewedAt: data.reviewed_at ? new Date(data.reviewed_at) : undefined,
             reviewedBy: data.reviewed_by || undefined,
             reviewNotes: data.review_notes || undefined,
-            disbursedAt: data.disbursed_at ? new Date(data.disbursed_at) : undefined
+            disbursedAt: data.disbursed_at ? new Date(data.disbursed_at) : undefined,
+            documentUrl: data.document_url || undefined
           };
 
           // Update localStorage
@@ -1875,7 +1894,8 @@ export class MockDatabase {
             duration: application.duration,
             guarantor_id1: application.guarantor1Id || application.guarantorIds?.[0],
             guarantor_id2: application.guarantor2Id || application.guarantorIds?.[1],
-            status: 'pending'
+            status: 'pending',
+            document_url: application.documentUrl
           }])
           .select()
           .single();
@@ -1902,7 +1922,8 @@ export class MockDatabase {
           reviewedAt: data.reviewed_at ? new Date(data.reviewed_at) : undefined,
           reviewedBy: data.reviewed_by || undefined,
           reviewNotes: data.review_notes || undefined,
-          disbursedAt: data.disbursed_at ? new Date(data.disbursed_at) : undefined
+          disbursedAt: data.disbursed_at ? new Date(data.disbursed_at) : undefined,
+          documentUrl: data.document_url || undefined
         };
 
         // Create guarantor requests for this application in Supabase
@@ -1932,30 +1953,73 @@ export class MockDatabase {
       }
     }
 
-    // Fallback to localStorage if Supabase is not configured or fails
-    const newApplication: LoanApplication = {
+    // Fallback to localStorage logic... (it's already there)
+    return this.createLoanApplicationLocal(application);
+  }
+
+  /**
+   * Internal helper for local creation fallback
+   */
+  private async createLoanApplicationLocal(application: Omit<LoanApplication, 'id' | 'appliedAt' | 'status'>): Promise<LoanApplication> {
+    const newLoan: LoanApplication = {
       ...application,
-      id: Date.now().toString(),
-      appliedAt: new Date(),
+      id: `LOAN-${Date.now()}`,
       status: 'pending',
+      appliedAt: new Date(),
+      guarantorIds: application.guarantorIds || [application.guarantor1Id, application.guarantor2Id].filter(Boolean) as string[],
+      guarantorCount: application.guarantorCount || 2,
+      documentUrl: application.documentUrl
     };
+
+    this.loanApplications.push(newLoan);
+    this.saveToStorage();
+
     // Create guarantor requests for this application
-    const guarantorIds = [application.guarantor1Id, application.guarantor2Id].filter(Boolean) as string[];
-    for (const guarantorId of guarantorIds) {
-      await this.createGuarantorRequest({
-        societyId: newApplication.societyId,
-        type: 'loan',
-        applicationId: newApplication.id,
-        applicantName: `Member ${newApplication.memberId}`,
-        guarantorMemberId: guarantorId,
-        status: 'pending'
-      });
+    const applicant = await this.getMemberById(application.memberId);
+    const applicantName = applicant ? `${applicant.firstName} ${applicant.lastName}` : 'Member';
+
+    if (newLoan.guarantorIds) {
+      for (const guarantorId of newLoan.guarantorIds) {
+        await this.createGuarantorRequest({
+          societyId: newLoan.societyId,
+          type: 'loan',
+          applicationId: newLoan.id,
+          applicantName,
+          guarantorMemberId: guarantorId,
+          status: 'pending'
+        });
+      }
     }
 
-    this.loanApplications.push(newApplication);
-    this.saveToStorage();
-    return newApplication;
+    return newLoan;
   }
+
+  /**
+   * Admin-initiated loan application for members who cannot use the portal.
+   */
+  async createLoanApplicationByAdmin(
+    memberId: string,
+    societyId: string,
+    amount: number,
+    purpose: string,
+    duration: number,
+    guarantorIds: string[],
+    documentUrl?: string
+  ): Promise<LoanApplication> {
+    return this.createLoanApplication({
+      memberId,
+      societyId,
+      amount,
+      purpose,
+      duration,
+      guarantorIds,
+      guarantor1Id: guarantorIds[0],
+      guarantor2Id: guarantorIds[1],
+      guarantorCount: guarantorIds.length,
+      documentUrl
+    });
+  }
+
 
   // Transaction methods
   async getTransactions(societyId?: string): Promise<Transaction[]> {
@@ -2797,7 +2861,8 @@ export class MockDatabase {
       savingsBalance: data.savingsBalance || 0,
       loanBalance: 0,
       interestBalance: 0,
-      societyDues: 0
+      societyDues: 0,
+      nextScheduledInterest: 0
     };
 
     // 3. Save member to Supabase
@@ -2896,12 +2961,17 @@ export class MockDatabase {
 
     // If there's pending interest to charge, update the member
     if (calculation.monthsToCalculate > 0 && calculation.totalInterest > 0) {
-      console.log(`[Interest] Auto-charging ${calculation.monthsToCalculate} month(s) for ${member.firstName} ${member.lastName}: ₦${calculation.totalInterest.toLocaleString()}`);
+
+      // Import helper inside to avoid circular deps
+      const { getCurrentInterestRate } = require('./loan-utils');
+      const nextRate = getCurrentInterestRate(member);
+      const nextInterest = Math.round((member.loanBalance! * nextRate) / 100);
 
       // Update member with new interest balance and mark the calculation date
       const updated = await this.updateMember(member.id, {
         interestBalance: calculation.newInterestBalance,
         lastInterestCalculationDate: new Date(),
+        nextScheduledInterest: nextInterest,
       });
 
       // Record an interest_charge transaction
@@ -3584,6 +3654,15 @@ export class MockDatabase {
       if (typeof window !== 'undefined') localStorage.setItem(key, JSON.stringify(data));
     } catch { /* ignore */ }
   }
+
+  /**
+   * Admin override for a guarantor who cannot use the technology.
+   */
+  async approveGuarantorOnBehalf(requestId: string): Promise<GuarantorRequest | undefined> {
+    return this.updateGuarantorRequest(requestId, 'approved');
+  }
 }
 
 export const db = new MockDatabase();
+
+

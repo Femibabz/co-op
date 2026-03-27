@@ -13,8 +13,9 @@ import { Label } from '@/components/ui/label';
 import { db } from '@/lib/mock-data';
 import { getSocietySettings } from '@/lib/society-settings';
 import { LoanApplication, Member, GuarantorRequest } from '@/types';
-import { ShieldCheck, ShieldX, Shield } from 'lucide-react';
+import { ShieldCheck, ShieldX, Shield, FileText } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { getNextMonthInterestPreview } from '@/lib/loan-utils';
 
 export default function LoansPage() {
   const [loanApplications, setLoanApplications] = useState<LoanApplication[]>([]);
@@ -27,6 +28,19 @@ export default function LoansPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [guarantorRequests, setGuarantorRequests] = useState<GuarantorRequest[]>([]);
+  const [isManualLoanDialogOpen, setIsManualLoanDialogOpen] = useState(false);
+  const [manualLoanError, setManualLoanError] = useState('');
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [manualLoanData, setManualLoanData] = useState({
+    memberId: '',
+    amount: '',
+    purpose: '',
+    duration: '12',
+    guarantor1Id: '',
+    guarantor2Id: '',
+    documentUrl: '',
+  });
 
   const { user } = useAuth();
   useEffect(() => {
@@ -105,6 +119,8 @@ export default function LoansPage() {
       const newPrincipal = oldPrincipal + oldInterest + selectedLoan.amount;
       const monthlyPayment = newPrincipal / (selectedLoan.duration || 12);
 
+      const nextInterest = Math.round(newPrincipal * (loanInterestRate / 100));
+
       await db.updateMember(selectedMember.id, {
         loanBalance: newPrincipal,
         interestBalance: 0,             // Fold any existing interest into new principal
@@ -113,6 +129,7 @@ export default function LoansPage() {
         loanInterestRate,               // rate from society settings at time of disbursement
         monthlyLoanPayment: monthlyPayment,
         lastInterestCalculationDate: approvalDate,
+        nextScheduledInterest: nextInterest,
         allowNewLoanWithBalance: false, // Reset override after it's used
       });
 
@@ -137,6 +154,17 @@ export default function LoansPage() {
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setManualLoanData({ ...manualLoanData, documentUrl: reader.result as string });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleRejectLoan = async () => {
     if (!selectedLoan) return;
 
@@ -155,6 +183,97 @@ export default function LoansPage() {
       }
     } catch (err) {
       setError('Failed to reject loan');
+    }
+  };
+
+  const handleManualLoanSubmit = async () => {
+    setManualLoanError('');
+    const member = members.find(m => m.id === manualLoanData.memberId);
+    if (!member) {
+      setManualLoanError('Please select a valid member');
+      return;
+    }
+
+    const loanAmount = parseFloat(manualLoanData.amount);
+
+    if (!manualLoanData.memberId || !manualLoanData.amount || !manualLoanData.guarantor1Id || !manualLoanData.guarantor2Id) {
+      setManualLoanError('Please fill in all required fields');
+      return;
+    }
+
+    // 1. Check for outstanding loan
+    if (member.loanBalance > 0 && !member.allowNewLoanWithBalance) {
+      setManualLoanError(`Member has an outstanding loan balance of ${formatCurrency(member.loanBalance)}. Manual loans are blocked unless override is enabled in member settings.`);
+      return;
+    }
+
+    // 2. Check 2x Shares + Savings limit
+    const totalCollateral = (member.sharesBalance || 0) + (member.savingsBalance || 0);
+    const maxLoan = totalCollateral * 2;
+    if (loanAmount > maxLoan) {
+      setManualLoanError(`Loan amount (${formatCurrency(loanAmount)}) exceeds 2x total shares and savings (${formatCurrency(maxLoan)}).`);
+      return;
+    }
+
+    // 3. Check 6-month membership tenure
+    const joinDate = new Date(member.dateJoined);
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    if (joinDate > sixMonthsAgo && !member.loanEligibilityOverride) {
+      setManualLoanError(`Member joined on ${joinDate.toLocaleDateString()}. Membership must be at least 6 months old to apply for a loan.`);
+      return;
+    }
+
+    if (manualLoanData.guarantor1Id === manualLoanData.guarantor2Id) {
+      setManualLoanError('Guarantors must be different members');
+      return;
+    }
+
+    if (manualLoanData.guarantor1Id === manualLoanData.memberId || manualLoanData.guarantor2Id === manualLoanData.memberId) {
+      setManualLoanError('Member cannot be their own guarantor');
+      return;
+    }
+
+    try {
+      await db.createLoanApplicationByAdmin(
+        manualLoanData.memberId,
+        user!.societyId!,
+        parseFloat(manualLoanData.amount),
+        manualLoanData.purpose || 'Manual loan entry',
+        parseInt(manualLoanData.duration),
+        [manualLoanData.guarantor1Id, manualLoanData.guarantor2Id],
+        manualLoanData.documentUrl
+      );
+
+      setSuccess('Manual loan recorded successfully');
+      setIsManualLoanDialogOpen(false);
+      setManualLoanError('');
+      setManualLoanData({
+        memberId: '',
+        amount: '',
+        purpose: '',
+        duration: '12',
+        guarantor1Id: '',
+        guarantor2Id: '',
+        documentUrl: '',
+      });
+      loadLoanApplications();
+    } catch (err) {
+      setError('Failed to record manual loan');
+    }
+  };
+
+  const handleOverrideGuarantor = async (requestId: string) => {
+    try {
+      await db.approveGuarantorOnBehalf(requestId);
+      setSuccess('Guarantor approved by admin override');
+      // Refresh requests for the current loan view
+      if (selectedLoan) {
+        const reqs = await db.getGuarantorRequestsForApplication(selectedLoan.id);
+        setGuarantorRequests(reqs);
+      }
+    } catch (err) {
+      setError('Failed to override guarantor approval');
     }
   };
 
@@ -189,11 +308,22 @@ export default function LoansPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight">Loan Management</h2>
-        <p className="text-muted-foreground">
-          Review and approve loan applications (FIFO order)
-        </p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Loan Management</h2>
+          <p className="text-muted-foreground">
+            Review and approve loan applications (FIFO order)
+          </p>
+        </div>
+        <Button 
+          onClick={() => {
+            setManualLoanError('');
+            setIsManualLoanDialogOpen(true);
+          }}
+          className="bg-indigo-600 hover:bg-indigo-700 font-bold"
+        >
+          Record Manual Loan
+        </Button>
       </div>
 
       {(error || success) && (
@@ -372,6 +502,13 @@ export default function LoansPage() {
               {/* Loan Details */}
               <div className="border-t pt-4">
                 <h3 className="text-lg font-semibold mb-3">Loan Application Details</h3>
+                <div className="flex items-center justify-between text-sm py-1 border-b border-slate-50">
+                      <span className="text-slate-500 font-medium">Projected Interest (Next Month):</span>
+                      <span className="font-bold text-indigo-700">
+                        {formatCurrency(getNextMonthInterestPreview(selectedMember)?.amount || 0)} 
+                        <span className="text-[10px] ml-1 opacity-70">(Locked-in)</span>
+                      </span>
+                    </div>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
                     <Label>Requested Amount</Label>
@@ -392,9 +529,25 @@ export default function LoansPage() {
                     </div>
                   )}
                 </div>
-                <div className="mt-4">
-                  <Label>Purpose</Label>
-                  <p className="text-sm">{selectedLoan.purpose}</p>
+                <div className="mt-4 flex items-center justify-between group">
+                  <div>
+                    <Label>Purpose</Label>
+                    <p className="text-sm">{selectedLoan.purpose}</p>
+                  </div>
+                  {selectedLoan.documentUrl && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setPreviewUrl(selectedLoan.documentUrl || null);
+                        setIsPreviewOpen(true);
+                      }}
+                      className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-full transition-colors h-auto"
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                      View Original Application
+                    </Button>
+                  )}
                 </div>
               </div>
 
@@ -417,9 +570,21 @@ export default function LoansPage() {
                               {gMember ? `${gMember.firstName} ${gMember.lastName} (${gMember.memberNumber})` : req.guarantorMemberId}
                             </span>
                           </div>
-                          <Badge variant={req.status === 'approved' ? 'default' : req.status === 'declined' ? 'destructive' : 'secondary'}>
-                            {req.status}
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge variant={req.status === 'approved' ? 'default' : req.status === 'declined' ? 'destructive' : 'secondary'}>
+                              {req.status}
+                            </Badge>
+                            {req.status === 'pending' && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleOverrideGuarantor(req.id)}
+                                className="h-7 px-2 text-[10px] font-bold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
+                              >
+                                Admin Override
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       );
                     })}
@@ -517,6 +682,217 @@ export default function LoansPage() {
               })()}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Manual Loan Recording Modal */}
+      <Dialog open={isManualLoanDialogOpen} onOpenChange={setIsManualLoanDialogOpen}>
+        <DialogContent className="max-w-2xl w-[95vw] sm:w-full">
+          <DialogHeader>
+            <DialogTitle>Record Manual Loan Application</DialogTitle>
+            <DialogDescription>
+              Enter details for members who cannot use the online portal
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {manualLoanError && (
+              <Alert variant="destructive">
+                <AlertDescription>{manualLoanError}</AlertDescription>
+              </Alert>
+            )}
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Select Member</Label>
+                <select
+                  className="w-full p-2 border rounded-md text-sm"
+                  value={manualLoanData.memberId}
+                  onChange={(e) => {
+                    setManualLoanError('');
+                    setManualLoanData({ ...manualLoanData, memberId: e.target.value });
+                  }}
+                >
+                  <option value="">Choose a member...</option>
+                  {members.map(m => {
+                    const hasBalance = m.loanBalance > 0;
+                    const canApplyWithBalance = m.allowNewLoanWithBalance;
+                    
+                    const joinDate = new Date(m.dateJoined);
+                    const sixMonthsAgo = new Date();
+                    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+                    const isNewMember = joinDate > sixMonthsAgo;
+                    const canApplyNew = m.loanEligibilityOverride;
+
+                    const isBlocked = (hasBalance && !canApplyWithBalance) || (isNewMember && !canApplyNew);
+                    const blockReason = hasBalance && !canApplyWithBalance ? '(Outstanding Balance)' : 
+                                       isNewMember && !canApplyNew ? '(New Member)' : '';
+
+                    return (
+                      <option 
+                        key={m.id} 
+                        value={m.id}
+                        disabled={isBlocked}
+                        className={isBlocked ? 'text-slate-400 italic' : ''}
+                      >
+                        {m.firstName} {m.lastName} ({m.memberNumber}) {blockReason}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label>Loan Amount (₦)</Label>
+                <Input
+                  type="number"
+                  placeholder="e.g. 500000"
+                  value={manualLoanData.amount}
+                  onChange={(e) => setManualLoanData({ ...manualLoanData, amount: e.target.value })}
+                />
+                {manualLoanData.memberId && (() => {
+                  const m = members.find(mem => mem.id === manualLoanData.memberId);
+                  if (!m) return null;
+                  return (
+                    <div className="flex gap-4 p-2 bg-indigo-50 rounded text-[11px] font-medium text-indigo-700">
+                      <div>Savings: {formatCurrency(m.savingsBalance)}</div>
+                      <div>Shares: {formatCurrency(m.sharesBalance)}</div>
+                      <div className="font-bold border-l pl-2 border-indigo-200">
+                        Max Loan (2x): {formatCurrency(((m.savingsBalance || 0) + (m.sharesBalance || 0)) * 2)}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+              <div className="space-y-2">
+                <Label>Loan Duration (Months)</Label>
+                <select
+                  className="w-full p-2 border rounded-md text-sm"
+                  value={manualLoanData.duration}
+                  onChange={(e) => setManualLoanData({ ...manualLoanData, duration: e.target.value })}
+                >
+                  {[6, 12, 18, 24, 36, 48].map(m => (
+                    <option key={m} value={m.toString()}>{m} months</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label>Guarantor 1</Label>
+                <select
+                  className="w-full p-2 border rounded-md text-sm"
+                  value={manualLoanData.guarantor1Id}
+                  onChange={(e) => setManualLoanData({ ...manualLoanData, guarantor1Id: e.target.value })}
+                >
+                  <option value="">Select First Guarantor...</option>
+                  {members
+                    .filter(m => m.id !== manualLoanData.memberId)
+                    .map(m => (
+                      <option key={m.id} value={m.id}>
+                        {m.firstName} {m.lastName} ({m.memberNumber})
+                      </option>
+                    ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label>Guarantor 2</Label>
+                <select
+                  className="w-full p-2 border rounded-md text-sm"
+                  value={manualLoanData.guarantor2Id}
+                  onChange={(e) => setManualLoanData({ ...manualLoanData, guarantor2Id: e.target.value })}
+                >
+                  <option value="">Select Second Guarantor...</option>
+                  {members
+                    .filter(m => m.id !== manualLoanData.memberId && m.id !== manualLoanData.guarantor1Id)
+                    .map(m => (
+                      <option key={m.id} value={m.id}>
+                        {m.firstName} {m.lastName} ({m.memberNumber})
+                      </option>
+                    ))}
+                </select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Purpose of Loan</Label>
+              <Input
+                placeholder="e.g. Small business expansion"
+                value={manualLoanData.purpose}
+                onChange={(e) => setManualLoanData({ ...manualLoanData, purpose: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Original Application Document (Scan/PDF)</Label>
+              <div className="flex items-center gap-4">
+                <Input
+                  type="file"
+                  accept=".pdf,image/*"
+                  onChange={handleFileChange}
+                  className="cursor-pointer"
+                />
+                {manualLoanData.documentUrl && (
+                  <Badge variant="default" className="bg-green-100 text-green-700 hover:bg-green-200">
+                    File Ready
+                  </Badge>
+                )}
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Upload the scanned letter or PDF provided by the member.
+              </p>
+            </div>
+          </div>
+          <div className="flex justify-end space-x-2 border-t pt-4">
+            <Button variant="outline" onClick={() => setIsManualLoanDialogOpen(false)}>Cancel</Button>
+            <Button 
+              className="bg-indigo-600 hover:bg-indigo-700"
+              onClick={handleManualLoanSubmit}
+            >
+              Record Application
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Document Preview Modal */}
+      <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+        <DialogContent className="max-w-4xl h-[85vh] flex flex-col p-6">
+          <DialogHeader className="pb-4 border-b">
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-indigo-600" />
+              Original Application Document
+            </DialogTitle>
+            <DialogDescription>
+              Viewing the uploaded record for this loan application
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 min-h-0 overflow-hidden bg-slate-50 rounded-lg border mt-4">
+            {previewUrl ? (
+              previewUrl.startsWith('data:application/pdf') ? (
+                <iframe 
+                  src={previewUrl} 
+                  className="w-full h-full border-0" 
+                  title="PDF Document Preview"
+                />
+              ) : (
+                <div className="w-full h-full overflow-auto p-4 flex items-center justify-center">
+                  <img 
+                    src={previewUrl} 
+                    alt="Application Document" 
+                    className="max-w-full max-h-full object-contain shadow-sm border rounded-sm" 
+                  />
+                </div>
+              )
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground gap-2">
+                <FileText className="h-10 w-10 opacity-20" />
+                <p>No document to preview</p>
+              </div>
+            )}
+          </div>
+          <div className="flex justify-end pt-4 border-t mt-4">
+            <Button 
+              variant="outline" 
+              onClick={() => setIsPreviewOpen(false)}
+              className="font-bold"
+            >
+              Close Preview
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
