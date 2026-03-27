@@ -2142,7 +2142,39 @@ export class MockDatabase {
   }
 
   // By-laws methods
-  getByLaws(societyId?: string): ByLaw[] {
+  async getByLaws(societyId?: string): Promise<ByLaw[]> {
+    if (isSupabaseConfigured()) {
+      try {
+        let query = supabase.from('bylaws').select('*').order('updated_at', { ascending: false });
+        if (societyId) {
+          query = query.eq('society_id', societyId);
+        }
+
+        const { data, error } = await query;
+        if (error) {
+          console.warn('Supabase bylaws fetch error:', error);
+        } else if (data) {
+          const bylaws: ByLaw[] = data.map(bylaw => ({
+            id: bylaw.id,
+            societyId: bylaw.society_id,
+            title: bylaw.title,
+            content: bylaw.content,
+            category: bylaw.category,
+            createdBy: bylaw.created_by,
+            createdAt: new Date(bylaw.created_at),
+            updatedAt: new Date(bylaw.updated_at),
+            isActive: bylaw.is_active
+          }));
+          
+          // Sync with local memory
+          this.byLaws = bylaws;
+          return bylaws;
+        }
+      } catch (err) {
+        console.warn('Supabase bylaws fetch exception:', err);
+      }
+    }
+
     let results = [...this.byLaws];
     if (societyId) {
       results = results.filter(bylaw => bylaw.societyId === societyId);
@@ -2227,19 +2259,42 @@ export class MockDatabase {
     return this.byLaws.find(bylaw => bylaw.id === id);
   }
 
-  createByLaw(bylaw: Omit<ByLaw, 'id' | 'createdAt' | 'updatedAt'>): ByLaw {
+  async createByLaw(bylaw: Omit<ByLaw, 'id' | 'createdAt' | 'updatedAt'>): Promise<ByLaw> {
+    const id = Date.now().toString();
     const newByLaw: ByLaw = {
       ...bylaw,
-      id: Date.now().toString(),
+      id,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
+
+    if (isSupabaseConfigured()) {
+      try {
+        const { data, error } = await supabase.from('bylaws').insert([{
+          society_id: bylaw.societyId,
+          title: bylaw.title,
+          content: bylaw.content,
+          category: bylaw.category,
+          created_by: bylaw.createdBy,
+          is_active: bylaw.isActive
+        }]).select().single();
+
+        if (error) {
+          console.warn('Supabase bylaw create error:', error);
+        } else if (data) {
+          newByLaw.id = data.id;
+        }
+      } catch (err) {
+        console.warn('Supabase bylaw create exception:', err);
+      }
+    }
+
     this.byLaws.push(newByLaw);
     this.saveToStorage();
     return newByLaw;
   }
 
-  updateByLaw(id: string, updates: Partial<Omit<ByLaw, 'id' | 'createdAt'>>): ByLaw | undefined {
+  async updateByLaw(id: string, updates: Partial<Omit<ByLaw, 'id' | 'createdAt'>>): Promise<ByLaw | undefined> {
     const index = this.byLaws.findIndex(bylaw => bylaw.id === id);
     if (index !== -1) {
       this.byLaws[index] = {
@@ -2247,16 +2302,42 @@ export class MockDatabase {
         ...updates,
         updatedAt: new Date(),
       };
+
+      if (isSupabaseConfigured()) {
+        try {
+          // Map to DB columns
+          const dbUpdates: any = {};
+          if (updates.title) dbUpdates.title = updates.title;
+          if (updates.content) dbUpdates.content = updates.content;
+          if (updates.category) dbUpdates.category = updates.category;
+          if (updates.isActive !== undefined) dbUpdates.is_active = updates.isActive;
+          dbUpdates.updated_at = new Date().toISOString();
+
+          await supabase.from('bylaws').update(dbUpdates).eq('id', id);
+        } catch (err) {
+          console.warn('Supabase bylaw update error:', err);
+        }
+      }
+
       this.saveToStorage();
       return this.byLaws[index];
     }
     return undefined;
   }
 
-  deleteByLaw(id: string): boolean {
+  async deleteByLaw(id: string): Promise<boolean> {
     const index = this.byLaws.findIndex(bylaw => bylaw.id === id);
     if (index !== -1) {
       this.byLaws.splice(index, 1);
+
+      if (isSupabaseConfigured()) {
+        try {
+          await supabase.from('bylaws').delete().eq('id', id);
+        } catch (err) {
+          console.warn('Supabase bylaw delete error:', err);
+        }
+      }
+
       this.saveToStorage();
       return true;
     }

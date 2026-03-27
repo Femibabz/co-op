@@ -38,9 +38,9 @@ export default function AdminByLawsPage() {
     loadByLaws();
   }, []);
 
-  const loadByLaws = () => {
+  const loadByLaws = async () => {
     if (!user?.societyId) return;
-    const allByLaws = db.getByLaws(user.societyId);
+    const allByLaws = await db.getByLaws(user.societyId);
     setByLaws(allByLaws);
   };
 
@@ -86,7 +86,7 @@ export default function AdminByLawsPage() {
         return;
       }
 
-      const newByLaw = db.createByLaw({
+      const newByLaw = await db.createByLaw({
         ...formData,
         societyId: user.societyId || 'soc1',
         createdBy: user.id,
@@ -119,7 +119,7 @@ export default function AdminByLawsPage() {
         return;
       }
 
-      const updated = db.updateByLaw(selectedByLaw.id, formData);
+      const updated = await db.updateByLaw(selectedByLaw.id, formData);
 
       if (updated) {
         setSuccess('By-law updated successfully!');
@@ -146,7 +146,7 @@ export default function AdminByLawsPage() {
     }
 
     try {
-      const deleted = db.deleteByLaw(id);
+      const deleted = await db.deleteByLaw(id);
       if (deleted) {
         setSuccess('By-law deleted successfully!');
         loadByLaws();
