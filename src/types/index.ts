@@ -136,12 +136,12 @@ export interface BroadcastMessage {
 export interface Levy {
   id: string;
   societyId: string;
+  memberNumber: string; // Direct association for the new table structure
   description: string;
   amount: number;
+  originalAmount: number; // For tracking initial vs current
   imposedAt: Date;
   imposedBy: string;
-  memberIds: string[];   // member IDs affected ('ALL' means all members at time of creation)
-  targetAll: boolean;
   status: 'active' | 'waived';
 }
 
@@ -149,8 +149,9 @@ export interface Transaction {
   id: string;
   memberId: string;
   societyId: string; // Which society this transaction belongs to
-  type: 'shares_deposit' | 'shares_withdrawal' | 'savings_deposit' | 'savings_withdrawal' | 'loan_disbursement' | 'loan_payment' | 'interest_charge' | 'interest_payment' | 'dues_charge' | 'dues_payment' | 'profile_update';
+  type: 'shares_deposit' | 'shares_withdrawal' | 'savings_deposit' | 'savings_withdrawal' | 'loan_disbursement' | 'loan_payment' | 'interest_charge' | 'interest_payment' | 'dues_charge' | 'dues_payment' | 'profile_update' | 'original levy';
   amount: number;
+  originalAmount?: number;
   description: string;
   date: Date;
   balanceAfter: number;

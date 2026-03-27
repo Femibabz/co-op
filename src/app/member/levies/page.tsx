@@ -61,7 +61,8 @@ export default function LevyHistoryPage() {
     );
   }
 
-  const totalLevied = levies.reduce((sum, l) => sum + l.amount, 0);
+  const totalLevied = levies.reduce((sum, l) => sum + l.originalAmount, 0);
+  const totalOutstanding = levies.reduce((sum, l) => sum + l.amount, 0);
 
   return (
     <div className="space-y-8 animate-fadeIn">
@@ -158,7 +159,8 @@ export default function LevyHistoryPage() {
                   <TableRow className="hover:bg-transparent border-slate-100">
                     <TableHead className="font-black text-slate-500 uppercase tracking-widest text-[10px] py-4 pl-6">Description</TableHead>
                     <TableHead className="font-black text-slate-500 uppercase tracking-widest text-[10px]">Date Imposed</TableHead>
-                    <TableHead className="font-black text-slate-500 uppercase tracking-widest text-[10px] text-right pr-6">Initial Amount</TableHead>
+                    <TableHead className="font-black text-slate-500 uppercase tracking-widest text-[10px] text-right">Original Amount</TableHead>
+                    <TableHead className="font-black text-slate-500 uppercase tracking-widest text-[10px] text-right pr-6">Current Due</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -187,6 +189,11 @@ export default function LevyHistoryPage() {
                             })}
                           </span>
                         </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <span className="text-sm font-bold text-slate-500 line-through opacity-50">
+                          {formatCurrency(levy.originalAmount)}
+                        </span>
                       </TableCell>
                       <TableCell className="text-right pr-6">
                         <span className="text-lg font-black text-slate-900 group-hover:text-primary transition-colors">

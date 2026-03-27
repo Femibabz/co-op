@@ -145,8 +145,7 @@ export default function SocietySettingsPage() {
                 description: levyDesc,
                 amount,
                 imposedBy: 'admin',
-                memberIds: targetIds,
-                targetAll: levyTarget === 'all'
+                memberIds: targetIds
             });
 
             setLevyMsg(`✓ Levy of ${formatNaira(amount)} imposed on ${targetIds.length} member(s).`);

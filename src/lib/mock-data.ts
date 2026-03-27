@@ -2092,7 +2092,8 @@ export class MockDatabase {
             date: transaction.date,
             balance_after: transaction.balanceAfter,
             reference_number: transaction.referenceNumber,
-            processed_by: transaction.processedBy
+            processed_by: transaction.processedBy,
+            original_amount: transaction.originalAmount
           }])
           .select()
           .single();
@@ -2114,7 +2115,8 @@ export class MockDatabase {
             date: new Date(data.date),
             balanceAfter: data.balance_after,
             referenceNumber: data.reference_number || undefined,
-            processedBy: data.processed_by || undefined
+            processedBy: data.processed_by || undefined,
+            originalAmount: data.original_amount || undefined
           };
 
           // Also save to localStorage as backup
@@ -3361,43 +3363,72 @@ export class MockDatabase {
 
   private levies: Levy[] = this.loadKeyFromStorage<Levy[]>('levies') || [];
 
-  async createLevy(data: Omit<Levy, 'id' | 'imposedAt' | 'status'>): Promise<Levy> {
-    const levy: Levy = {
-      ...data,
-      id: `lv${Date.now()}`,
-      imposedAt: new Date(),
-      status: 'active',
-    };
-    this.levies.push(levy);
-    this.saveCollectionToStorage('levies', this.levies);
+  async createLevy(data: { societyId: string, description: string, amount: number, memberIds: string[], imposedBy: string }): Promise<void> {
+    const imposedAt = new Date();
 
-    // Update members and create transactions
-    const targetIds = data.memberIds;
-
-    await Promise.all(targetIds.map(async (memberId) => {
+    await Promise.all(data.memberIds.map(async (memberId) => {
       const member = await this.getMemberById(memberId);
       if (member) {
         const newDuesBalance = (member.societyDues || 0) + data.amount;
 
-        // Update member balance
+        if (isSupabaseConfigured()) {
+          try {
+            const { data: levyData, error: levyError } = await supabase.from('levies').insert([{
+              society_id: data.societyId,
+              member_number: member.memberNumber,
+              description: data.description,
+              amount: data.amount,
+              original_amount: data.amount,
+              imposed_at: imposedAt.toISOString(),
+              imposed_by: data.imposedBy,
+              status: 'active'
+            }]).select();
+
+            if (levyError) {
+              console.error(`[createLevy] Supabase 'levies' insert error:`, levyError);
+            }
+          } catch (err) {
+            console.error(`[createLevy] Supabase "levies" insert exception:`, err);
+          }
+        } else {
+          console.log(`[createLevy] Supabase NOT configured. Using local fallback for ${memberId}`);
+          // Local fallback
+          const levy: Levy = {
+            id: `lv${Date.now()}-${member.id}`,
+            societyId: data.societyId,
+            memberNumber: member.memberNumber,
+            description: data.description,
+            amount: data.amount,
+            originalAmount: data.amount,
+            imposedAt,
+            imposedBy: data.imposedBy,
+            status: 'active'
+          };
+          this.levies.push(levy);
+        }
+
+        // 2. Update member balance
         await this.updateMember(memberId, { societyDues: newDuesBalance });
 
-        // Create dues_charge transaction with unique reference for sync tracking
+        // 3. Create 'original levy' transaction (Ledger)
         await this.createTransaction({
           memberId,
           societyId: data.societyId,
-          type: 'dues_charge',
+          type: 'original levy',
           amount: data.amount,
+          originalAmount: data.amount,
           description: data.description,
-          date: new Date(),
+          date: imposedAt,
           balanceAfter: newDuesBalance,
-          referenceNumber: `LVY-${levy.id}-${memberId}`,
-          processedBy: 'admin'
+          referenceNumber: `LVY-${Date.now()}-${member.memberNumber}`,
+          processedBy: data.imposedBy
         });
       }
     }));
 
-    return levy;
+    if (!isSupabaseConfigured()) {
+      this.saveCollectionToStorage('levies', this.levies);
+    }
   }
 
   getLevies(societyId?: string): Levy[] {
@@ -3409,23 +3440,34 @@ export class MockDatabase {
   }
 
   async getLeviesByMember(memberId: string): Promise<Levy[]> {
+    const member = await this.getMemberById(memberId);
+    if (!member) return [];
+
     if (isSupabaseConfigured()) {
+      console.log(`[getLeviesByMember] Fetching for member number: ${member.memberNumber}`);
       try {
         const { data, error } = await supabase
           .from('levies')
           .select('*')
-          .contains('member_ids', [memberId]);
+          .eq('member_number', member.memberNumber)
+          .order('imposed_at', { ascending: false });
 
-        if (!error && data) {
+        if (error) {
+          console.error(`[getLeviesByMember] Supabase fetch error:`, error);
+          throw error;
+        }
+
+        if (data) {
+          console.log(`[getLeviesByMember] Found ${data.length} records in 'levies' table`);
           return data.map(l => ({
             id: l.id,
             societyId: l.society_id,
+            memberNumber: l.member_number,
             description: l.description,
             amount: l.amount,
+            originalAmount: l.original_amount,
             imposedAt: new Date(l.imposed_at),
             imposedBy: l.imposed_by,
-            memberIds: l.member_ids || [],
-            targetAll: l.target_all || false,
             status: l.status as 'active' | 'waived'
           }));
         }
@@ -3435,7 +3477,7 @@ export class MockDatabase {
     }
 
     return this.levies
-      .filter(l => l.memberIds.includes(memberId) || l.targetAll)
+      .filter(l => l.memberNumber === member.memberNumber)
       .map(l => ({ ...l, imposedAt: new Date(l.imposedAt) }))
       .sort((a, b) => b.imposedAt.getTime() - a.imposedAt.getTime());
   }
