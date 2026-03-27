@@ -374,8 +374,10 @@ export default function MemberDashboard() {
                     <TrendingUp className="w-5 h-5 text-indigo-600" />
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-indigo-900">Projected Interest Next Month</p>
-                    <p className="text-sm text-indigo-700">{nextInterestPreview.message}</p>
+                    <p className="text-xs font-bold text-indigo-900">Projected Interest Next Month (Locked-in)</p>
+                    <p className="text-sm text-indigo-700">
+                      {nextInterestPreview.isFirstInterest ? 'First interest' : 'Next interest'} of {formatCurrency(nextInterestPreview.amount)} will be charged on {nextInterestPreview.date.toLocaleDateString()} (Next month) — based on balance at start of period.
+                    </p>
                   </div>
                 </div>
                 <p className="text-xl font-extrabold text-indigo-900">{formatCurrency(nextInterestPreview.amount)}</p>

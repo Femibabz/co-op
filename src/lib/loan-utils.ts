@@ -138,7 +138,13 @@ export function calculateAccumulatedInterest(member: Member): {
       ? member.loanInterestRate
       : 1.0;
     const rate = monthsSinceDisbursement >= 12 ? baseRate * 2 : baseRate;
-    const interest = Math.round((member.loanBalance! * rate) / 100);
+    
+    // For the first month being calculated, use the locked-in scheduled interest if available.
+    // This implements the "interest lock-in" rule.
+    let interest = Math.round((member.loanBalance! * rate) / 100);
+    if (i === 0 && member.nextScheduledInterest !== undefined && member.nextScheduledInterest > 0) {
+      interest = member.nextScheduledInterest;
+    }
 
     totalInterest += interest;
     breakdown.push({
@@ -219,10 +225,11 @@ export function getNextInterestDueDate(member: Member): Date | null {
  * Used to show members / admins a forward-looking estimate.
  */
 export function getNextMonthInterestPreview(member: Member): {
-  dueDate: Date;
+  date: Date;
   amount: number;
   rate: number;
   message: string;
+  isFirstInterest: boolean;
 } | null {
   if (!member.loanStartDate || (member.loanBalance ?? 0) <= 0) return null;
 
@@ -230,24 +237,21 @@ export function getNextMonthInterestPreview(member: Member): {
   const loanStartDate = new Date(member.loanStartDate);
   const firstChargeDate = new Date(loanStartDate.getFullYear(), loanStartDate.getMonth() + 1, 1);
 
-  const dueDate = now < firstChargeDate
+  const date = now < firstChargeDate
     ? firstChargeDate
     : new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
-  const monthsSinceDisbursement = getMonthsDifference(loanStartDate, dueDate);
-  const baseRate = (member.loanInterestRate != null && member.loanInterestRate > 0)
-    ? member.loanInterestRate
-    : 1.0;
-  const rate = monthsSinceDisbursement >= 12 ? baseRate * 2 : baseRate;
-  const amount = Math.round((member.loanBalance! * rate) / 100);
-  const monthLabel = dueDate.toLocaleDateString('en-NG', { month: 'long', year: 'numeric' });
+  // Use locked-in interest if available, otherwise calculate on current balance
+  const amount = member.nextScheduledInterest ?? Math.round((member.loanBalance! * (getCurrentInterestRate(member))) / 100);
+  const rate = getCurrentInterestRate(member);
+  const monthLabel = date.toLocaleDateString('en-NG', { month: 'long', year: 'numeric' });
 
-  const isFirst = now < firstChargeDate;
-  const message = isFirst
-    ? `First interest of ${formatNaira(amount)} will be charged on ${dueDate.toLocaleDateString('en-NG')} (${monthLabel})`
-    : `Interest of ${formatNaira(amount)} will be charged on ${dueDate.toLocaleDateString('en-NG')} (${monthLabel})`;
+  const isFirstInterest = now < firstChargeDate;
+  const message = isFirstInterest
+    ? `First interest of ${formatNaira(amount)} will be charged on ${date.toLocaleDateString('en-NG')} (${monthLabel})`
+    : `Interest of ${formatNaira(amount)} will be charged on ${date.toLocaleDateString('en-NG')} (${monthLabel})`;
 
-  return { dueDate, amount, rate, message };
+  return { date, amount, rate, message, isFirstInterest };
 }
 
 /** Nigerian Naira currency formatter */
@@ -292,7 +296,7 @@ export function getLoanSummary(member: Member): {
     : 0;
 
   const currentMonthlyRate = getCurrentInterestRate(member);
-  const nextMonthInterest = Math.round((loanBalance * currentMonthlyRate) / 100);
+  const nextMonthInterest = member.nextScheduledInterest ?? Math.round((loanBalance * currentMonthlyRate) / 100);
   const isPenaltyRate = shouldDoubleInterestRate(member);
   const nextInterestDueDate = getNextInterestDueDate(member);
 

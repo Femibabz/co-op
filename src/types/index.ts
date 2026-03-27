@@ -55,6 +55,7 @@ export interface Member {
   loanInterestRate?: number; // Monthly percentage rate (starts at 1.5%, doubles after 12 months)
   monthlyLoanPayment?: number;
   lastInterestCalculationDate?: Date; // Last time monthly interest was calculated
+  nextScheduledInterest?: number; // Pre-calculated interest to be charged on the next 1st
   // Admin overrides
   loanEligibilityOverride?: boolean; // Super admin can override 6-month requirement
   allowNewLoanWithBalance?: boolean; // Admin can allow new loan with outstanding balance
@@ -100,6 +101,7 @@ export interface LoanApplication {
   guarantor2Id?: string;
   guarantorIds?: string[];      // internal use for processing
   guarantorCount?: number;      // internal use for processing
+  documentUrl?: string;         // URL to scanned application letter or PDF
 }
 
 /** Tracks a guarantor's approval/decline for a loan or membership application */

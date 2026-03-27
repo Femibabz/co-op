@@ -308,10 +308,10 @@ export default function LoansPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Loan Management</h2>
-          <p className="text-muted-foreground">
+          <h2 className="text-3xl font-bold tracking-tight text-slate-900">Loan Management</h2>
+          <p className="text-muted-foreground text-sm">
             Review and approve loan applications (FIFO order)
           </p>
         </div>
@@ -320,7 +320,7 @@ export default function LoansPage() {
             setManualLoanError('');
             setIsManualLoanDialogOpen(true);
           }}
-          className="bg-indigo-600 hover:bg-indigo-700 font-bold"
+          className="bg-indigo-600 hover:bg-indigo-700 font-bold h-11 px-6 rounded-xl shadow-lg shadow-indigo-600/20 w-full sm:w-auto"
         >
           Record Manual Loan
         </Button>
@@ -372,14 +372,16 @@ export default function LoansPage() {
       </div>
 
       {/* Search */}
-      <div className="flex items-center space-x-2">
-        <Input
-          placeholder="Search loans..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="max-w-sm"
-        />
-        <span className="text-sm text-muted-foreground">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+        <div className="relative w-full sm:max-w-sm">
+          <Input
+            placeholder="Search loans..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="h-11 pl-10 bg-slate-50 border-transparent focus:border-indigo-500/50 focus:bg-white rounded-xl font-medium"
+          />
+        </div>
+        <span className="text-sm font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">
           {filteredLoans.length} loan(s) found
         </span>
       </div>
@@ -459,7 +461,7 @@ export default function LoansPage() {
 
       {/* Review Loan Modal */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-3xl w-[95vw] sm:w-full">
+        <DialogContent className="max-w-3xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Review Loan Application</DialogTitle>
             <DialogDescription>
@@ -471,7 +473,7 @@ export default function LoansPage() {
               {/* Member Information */}
               <div>
                 <h3 className="text-lg font-semibold mb-3">Member Information</h3>
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
                   <div>
                     <Label>Member Name</Label>
                     <p className="text-sm">{selectedMember.firstName} {selectedMember.lastName}</p>
@@ -509,7 +511,7 @@ export default function LoansPage() {
                         <span className="text-[10px] ml-1 opacity-70">(Locked-in)</span>
                       </span>
                     </div>
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
                   <div>
                     <Label>Requested Amount</Label>
                     <p className="text-sm font-medium">{formatCurrency(selectedLoan.amount)}</p>
@@ -529,7 +531,7 @@ export default function LoansPage() {
                     </div>
                   )}
                 </div>
-                <div className="mt-4 flex items-center justify-between group">
+                <div className="mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 group">
                   <div>
                     <Label>Purpose</Label>
                     <p className="text-sm">{selectedLoan.purpose}</p>
@@ -645,7 +647,7 @@ export default function LoansPage() {
               {selectedLoan.status !== 'pending' && selectedLoan.reviewNotes && (
                 <div className="border-t pt-4">
                   <h3 className="text-lg font-semibold mb-3">Review Details</h3>
-                  <div className="grid gap-4 md:grid-cols-2">
+                  <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
                     <div>
                       <Label>Reviewed By</Label>
                       <p className="text-sm">{selectedLoan.reviewedBy}</p>
@@ -687,7 +689,7 @@ export default function LoansPage() {
 
       {/* Manual Loan Recording Modal */}
       <Dialog open={isManualLoanDialogOpen} onOpenChange={setIsManualLoanDialogOpen}>
-        <DialogContent className="max-w-2xl w-[95vw] sm:w-full">
+        <DialogContent className="max-w-2xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Record Manual Loan Application</DialogTitle>
             <DialogDescription>
@@ -700,7 +702,7 @@ export default function LoansPage() {
                 <AlertDescription>{manualLoanError}</AlertDescription>
               </Alert>
             )}
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
               <div className="space-y-2">
                 <Label>Select Member</Label>
                 <select

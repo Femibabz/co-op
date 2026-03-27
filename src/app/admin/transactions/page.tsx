@@ -325,9 +325,9 @@ export default function AdminTransactionsPage() {
       </div>
 
       {/* Advanced Filters */}
-      <div className="premium-card p-6 bg-white border-none shadow-sm">
-        <div className="grid gap-6 lg:grid-cols-12 items-end">
-          <div className="lg:col-span-3 space-y-2">
+      <div className="premium-card p-4 md:p-6 bg-white border-none shadow-sm">
+        <div className="grid gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 items-end">
+          <div className="sm:col-span-2 lg:col-span-3 space-y-2">
             <Label htmlFor="search" className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Keyword Search</Label>
             <div className="relative group">
               <Search className="absolute left-3 top-3.5 h-4 w-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
@@ -448,7 +448,7 @@ export default function AdminTransactionsPage() {
             </div>
           </div>
 
-          <div className={`space-y-2 transition-all duration-300 ${filterPeriod === 'custom' ? 'lg:col-span-2' : 'lg:col-span-2'}`}>
+          <div className={`space-y-2 transition-all duration-300 lg:col-span-2`}>
             <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">History Period</Label>
             <Select value={filterPeriod} onValueChange={(val) => { setFilterPeriod(val); setIsMemberDropdownOpen(false); setIsCategoryDropdownOpen(false); }}>
               <SelectTrigger className="h-12 bg-slate-50 border-transparent focus:border-emerald-500/50 focus:bg-white rounded-xl font-medium text-slate-900 shadow-none">
@@ -474,7 +474,7 @@ export default function AdminTransactionsPage() {
                   type="date"
                   value={customStartDate}
                   onChange={(e) => setCustomStartDate(e.target.value)}
-                  className="h-12 bg-slate-50 border-transparent focus:border-emerald-500/50 focus:bg-white rounded-xl font-medium text-xs"
+                  className="h-12 bg-slate-50 border-transparent focus:border-emerald-500/50 focus:bg-white rounded-xl font-medium text-xs w-full"
                 />
               </div>
               <div className="lg:col-span-1.5 space-y-2 animate-in slide-in-from-left-2 duration-300">
@@ -483,7 +483,7 @@ export default function AdminTransactionsPage() {
                   type="date"
                   value={customEndDate}
                   onChange={(e) => setCustomEndDate(e.target.value)}
-                  className="h-12 bg-slate-50 border-transparent focus:border-emerald-500/50 focus:bg-white rounded-xl font-medium text-xs"
+                  className="h-12 bg-slate-50 border-transparent focus:border-emerald-500/50 focus:bg-white rounded-xl font-medium text-xs w-full"
                 />
               </div>
             </>

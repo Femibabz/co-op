@@ -73,11 +73,28 @@ async function persistInterestCharge(
 ): Promise<void> {
   if (isSupabaseConfigured()) {
     try {
+      // Import the rate helper inside here to avoid circular dependency if any
+      const { getCurrentInterestRate } = require('./loan-utils');
+      
+      // Calculate NEXT month's locked-in interest based on CURRENT balance
+      // (This balance has NOT changed by the interest charge itself)
+      const { data: memberData } = await supabase.from('members').select('loan_balance, loan_interest_rate, loan_start_date').eq('id', memberId).single();
+      let nextInterest = 0;
+      if (memberData && memberData.loan_balance > 0) {
+        const rate = getCurrentInterestRate({ 
+          loanBalance: memberData.loan_balance, 
+          loanInterestRate: memberData.loan_interest_rate,
+          loanStartDate: memberData.loan_start_date ? new Date(memberData.loan_start_date) : undefined
+        });
+        nextInterest = Math.round((memberData.loan_balance * rate) / 100);
+      }
+
       await supabase
         .from('members')
         .update({
           interest_balance: calculation.newInterestBalance,
           last_interest_calculation_date: new Date().toISOString(),
+          next_scheduled_interest: nextInterest
         })
         .eq('id', memberId);
 
