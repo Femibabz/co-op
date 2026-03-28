@@ -1,0 +1,30 @@
+
+> nextjs-shadcn@0.1.0 dev
+> next dev -H 0.0.0.0
+
+   Γû▓ Next.js 15.5.7
+   - Local:        http://localhost:3000
+   - Network:      http://0.0.0.0:3000
+   - Environments: .env.local
+
+ Γ£ô Starting...
+ Γ£ô Ready in 2.3s
+ Γùï Compiling /admin/loans ...
+ Γ£ô Compiled /admin/loans in 8.6s (974 modules)
+ GET /admin/loans 200 in 9359ms
+ Γ£ô Compiled in 1149ms (416 modules)
+ Γ£ô Compiled in 1075ms (416 modules)
+ Γ£ô Compiled in 582ms (417 modules)
+ Γ£ô Compiled in 956ms (403 modules)
+ Γ¿» ./src/lib/mock-data.ts
+Module parse failed: Identifier 'nextRate' has already been declared (2581:18)
+|             var _calculation_breakdown_;
+|             const nextRate = getCurrentInterestRate(member);
+>             const nextRate = getCurrentInterestRate(member);
+|             const nextInterest = Math.round(member.loanBalance * nextRate / 100);
+|             // Update member with new interest balance and mark the calculation date
+
+Import trace for requested module:
+./src/lib/mock-data.ts
+./src/contexts/AuthContext.tsx
+ Γ£ô Compiled in 768ms (403 modules)

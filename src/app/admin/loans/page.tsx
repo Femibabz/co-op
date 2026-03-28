@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { db } from '@/lib/mock-data';
 import { getSocietySettings } from '@/lib/society-settings';
 import { LoanApplication, Member, GuarantorRequest } from '@/types';
-import { ShieldCheck, ShieldX, Shield, FileText } from 'lucide-react';
+import { ShieldCheck, ShieldX, Shield, FileText, Coins, Search, Calculator } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getNextMonthInterestPreview } from '@/lib/loan-utils';
 
@@ -32,6 +32,8 @@ export default function LoansPage() {
   const [manualLoanError, setManualLoanError] = useState('');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
   const [manualLoanData, setManualLoanData] = useState({
     memberId: '',
     amount: '',
@@ -43,26 +45,45 @@ export default function LoansPage() {
   });
 
   const { user } = useAuth();
+
+  const loadLoanApplications = async () => {
+    if (!user?.societyId) return;
+    setIsLoading(true);
+    try {
+      const [allLoans, allMembers] = await Promise.all([
+        db.getLoanApplications(user.societyId),
+        db.getMembers(user.societyId)
+      ]);
+
+      // Sort by applied date (FIFO) safely
+      allLoans.sort((a, b) => {
+        const dateA = a.appliedAt instanceof Date ? a.appliedAt : new Date(a.appliedAt);
+        const dateB = b.appliedAt instanceof Date ? b.appliedAt : new Date(b.appliedAt);
+        return dateA.getTime() - dateB.getTime();
+      });
+
+      setLoanApplications(allLoans);
+      setMembers(allMembers);
+    } catch (err: any) {
+      console.error('Error fetching loans:', err);
+      setError(err.message || 'Failed to load loan data');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (user?.societyId) {
       loadLoanApplications();
     }
-  }, [user]);
-
-  const loadLoanApplications = async () => {
-    if (!user?.societyId) return;
-    const allLoans = await db.getLoanApplications(user.societyId);
-    const allMembers = await db.getMembers(user.societyId);
-    // Sort by applied date (FIFO)
-    allLoans.sort((a, b) => a.appliedAt.getTime() - b.appliedAt.getTime());
-    setLoanApplications(allLoans);
-    setMembers(allMembers);
-  };
+  }, [user?.societyId]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-NG', {
       style: 'currency',
       currency: 'NGN',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     }).format(amount);
   };
 
@@ -74,12 +95,13 @@ export default function LoansPage() {
     const member = getMemberByLoanId(loan.memberId);
     if (!member) return false;
 
+    const searchLower = searchTerm.toLowerCase();
     return (
-      member.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      member.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      member.memberNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      loan.status.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      loan.purpose.toLowerCase().includes(searchTerm.toLowerCase())
+      member.firstName.toLowerCase().includes(searchLower) ||
+      member.lastName.toLowerCase().includes(searchLower) ||
+      member.memberNumber.toLowerCase().includes(searchLower) ||
+      loan.status.toLowerCase().includes(searchLower) ||
+      loan.purpose.toLowerCase().includes(searchLower)
     );
   });
 
@@ -87,11 +109,15 @@ export default function LoansPage() {
     const member = getMemberByLoanId(loan.memberId);
     setSelectedLoan(loan);
     setSelectedMember(member);
-    setReviewNotes('');
-    // Load guarantor requests for this loan
-    const reqs = await db.getGuarantorRequestsForApplication(loan.id);
-    setGuarantorRequests(reqs);
-    setIsDialogOpen(true);
+    setReviewNotes(loan.reviewNotes || '');
+    
+    try {
+      const reqs = await db.getGuarantorRequestsForApplication(loan.id);
+      setGuarantorRequests(reqs);
+      setIsDialogOpen(true);
+    } catch (err) {
+      setError('Failed to load guarantor details');
+    }
   };
 
   const handleApproveLoan = async () => {
@@ -99,50 +125,48 @@ export default function LoansPage() {
 
     try {
       const approvalDate = new Date();
+      const { loanInterestRate } = getSocietySettings();
+      const loanAmount = selectedLoan.amount;
+      const duration = selectedLoan.duration || 12;
 
-      // Update loan application status
-      const updatedLoan = await db.updateLoanApplication(selectedLoan.id, {
+      // Update application
+      await db.updateLoanApplication(selectedLoan.id, {
         status: 'approved',
         reviewedAt: approvalDate,
         reviewedBy: 'admin',
         reviewNotes,
-        disbursedAt: approvalDate, // Set disbursement date to approval date
+        disbursedAt: approvalDate,
       });
 
-      // Stamp the CURRENT society interest rate onto this loan record
-      // so it persists for the life of the loan even if the admin changes settings later.
-      const { loanInterestRate } = getSocietySettings();
-
-      // Calculate new total principal (summing old loan + old interest + new loan)
+      // Update Member financial balances
       const oldPrincipal = selectedMember.loanBalance || 0;
       const oldInterest = selectedMember.interestBalance || 0;
-      const newPrincipal = oldPrincipal + oldInterest + selectedLoan.amount;
-      const monthlyPayment = newPrincipal / (selectedLoan.duration || 12);
-
+      const newPrincipal = oldPrincipal + oldInterest + loanAmount;
+      const monthlyPayment = Math.round(newPrincipal / duration);
       const nextInterest = Math.round(newPrincipal * (loanInterestRate / 100));
 
       await db.updateMember(selectedMember.id, {
         loanBalance: newPrincipal,
-        interestBalance: 0,             // Fold any existing interest into new principal
+        interestBalance: 0, // fold existing interest into principal
         loanStartDate: approvalDate,
-        loanDurationMonths: selectedLoan.duration || 12,
-        loanInterestRate,               // rate from society settings at time of disbursement
+        loanDurationMonths: duration,
+        loanInterestRate,
         monthlyLoanPayment: monthlyPayment,
         lastInterestCalculationDate: approvalDate,
         nextScheduledInterest: nextInterest,
-        allowNewLoanWithBalance: false, // Reset override after it's used
+        allowNewLoanWithBalance: false,
       });
 
-      // Create loan disbursement transaction
+      // Create transaction record
       await db.createTransaction({
         memberId: selectedMember.id,
         societyId: selectedMember.societyId,
         type: 'loan_disbursement',
-        amount: selectedLoan.amount,
-        description: `Loan approved and disbursed - ${selectedLoan.purpose}${oldPrincipal > 0 ? ' (Balances merged)' : ''}`,
+        amount: loanAmount,
+        description: `Loan approved and disbursed - ${selectedLoan.purpose}${oldPrincipal > 0 ? ' (Balances combined)' : ''}`,
         date: approvalDate,
         balanceAfter: newPrincipal,
-        referenceNumber: `LN${Date.now()}`,
+        referenceNumber: `LN-DISB-${Date.now()}`,
         processedBy: 'admin',
       });
 
@@ -150,7 +174,37 @@ export default function LoansPage() {
       setIsDialogOpen(false);
       loadLoanApplications();
     } catch (err) {
-      setError('Failed to approve loan');
+      setError('Failed to approve loan application');
+    }
+  };
+
+  const handleRejectLoan = async () => {
+    if (!selectedLoan) return;
+    try {
+      await db.updateLoanApplication(selectedLoan.id, {
+        status: 'rejected',
+        reviewedAt: new Date(),
+        reviewedBy: 'admin',
+        reviewNotes,
+      });
+      setSuccess('Loan application rejected');
+      setIsDialogOpen(false);
+      loadLoanApplications();
+    } catch (err) {
+      setError('Failed to reject application');
+    }
+  };
+
+  const handleOverrideGuarantor = async (requestId: string) => {
+    try {
+      await db.approveGuarantorOnBehalf(requestId);
+      setSuccess('Guarantor approved via admin override');
+      if (selectedLoan) {
+        const reqs = await db.getGuarantorRequestsForApplication(selectedLoan.id);
+        setGuarantorRequests(reqs);
+      }
+    } catch (err) {
+      setError('Failed to apply override');
     }
   };
 
@@ -159,78 +213,46 @@ export default function LoansPage() {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setManualLoanData({ ...manualLoanData, documentUrl: reader.result as string });
+        setManualLoanData(prev => ({ ...prev, documentUrl: reader.result as string }));
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleRejectLoan = async () => {
-    if (!selectedLoan) return;
-
-    try {
-      const updatedLoan = await db.updateLoanApplication(selectedLoan.id, {
-        status: 'rejected',
-        reviewedAt: new Date(),
-        reviewedBy: 'admin',
-        reviewNotes,
-      });
-
-      if (updatedLoan) {
-        setSuccess('Loan rejected');
-        setIsDialogOpen(false);
-        loadLoanApplications();
-      }
-    } catch (err) {
-      setError('Failed to reject loan');
-    }
-  };
-
   const handleManualLoanSubmit = async () => {
     setManualLoanError('');
-    const member = members.find(m => m.id === manualLoanData.memberId);
-    if (!member) {
-      setManualLoanError('Please select a valid member');
-      return;
-    }
-
-    const loanAmount = parseFloat(manualLoanData.amount);
-
     if (!manualLoanData.memberId || !manualLoanData.amount || !manualLoanData.guarantor1Id || !manualLoanData.guarantor2Id) {
       setManualLoanError('Please fill in all required fields');
       return;
     }
 
-    // 1. Check for outstanding loan
+    const member = members.find(m => m.id === manualLoanData.memberId);
+    if (!member) return;
+
+    const loanAmount = parseFloat(manualLoanData.amount);
+    
+    // Validations
     if (member.loanBalance > 0 && !member.allowNewLoanWithBalance) {
-      setManualLoanError(`Member has an outstanding loan balance of ${formatCurrency(member.loanBalance)}. Manual loans are blocked unless override is enabled in member settings.`);
+      setManualLoanError(`Member has an existing balance of ${formatCurrency(member.loanBalance)}.`);
       return;
     }
 
-    // 2. Check 2x Shares + Savings limit
-    const totalCollateral = (member.sharesBalance || 0) + (member.savingsBalance || 0);
-    const maxLoan = totalCollateral * 2;
-    if (loanAmount > maxLoan) {
-      setManualLoanError(`Loan amount (${formatCurrency(loanAmount)}) exceeds 2x total shares and savings (${formatCurrency(maxLoan)}).`);
+    const maxAllowed = ((member.savingsBalance || 0) + (member.sharesBalance || 0)) * 2;
+    if (loanAmount > maxAllowed) {
+      setManualLoanError(`Requested amount exceeds the 2x limit (${formatCurrency(maxAllowed)}).`);
       return;
     }
 
-    // 3. Check 6-month membership tenure
     const joinDate = new Date(member.dateJoined);
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
     if (joinDate > sixMonthsAgo && !member.loanEligibilityOverride) {
-      setManualLoanError(`Member joined on ${joinDate.toLocaleDateString()}. Membership must be at least 6 months old to apply for a loan.`);
+      setManualLoanError('Member tenure is less than 6 months.');
       return;
     }
 
     if (manualLoanData.guarantor1Id === manualLoanData.guarantor2Id) {
-      setManualLoanError('Guarantors must be different members');
-      return;
-    }
-
-    if (manualLoanData.guarantor1Id === manualLoanData.memberId || manualLoanData.guarantor2Id === manualLoanData.memberId) {
-      setManualLoanError('Member cannot be their own guarantor');
+      setManualLoanError('Guarantors must be unique.');
       return;
     }
 
@@ -238,8 +260,8 @@ export default function LoansPage() {
       await db.createLoanApplicationByAdmin(
         manualLoanData.memberId,
         user!.societyId!,
-        parseFloat(manualLoanData.amount),
-        manualLoanData.purpose || 'Manual loan entry',
+        loanAmount,
+        manualLoanData.purpose || 'Manual loan recording',
         parseInt(manualLoanData.duration),
         [manualLoanData.guarantor1Id, manualLoanData.guarantor2Id],
         manualLoanData.documentUrl
@@ -247,7 +269,6 @@ export default function LoansPage() {
 
       setSuccess('Manual loan recorded successfully');
       setIsManualLoanDialogOpen(false);
-      setManualLoanError('');
       setManualLoanData({
         memberId: '',
         amount: '',
@@ -259,641 +280,505 @@ export default function LoansPage() {
       });
       loadLoanApplications();
     } catch (err) {
-      setError('Failed to record manual loan');
-    }
-  };
-
-  const handleOverrideGuarantor = async (requestId: string) => {
-    try {
-      await db.approveGuarantorOnBehalf(requestId);
-      setSuccess('Guarantor approved by admin override');
-      // Refresh requests for the current loan view
-      if (selectedLoan) {
-        const reqs = await db.getGuarantorRequestsForApplication(selectedLoan.id);
-        setGuarantorRequests(reqs);
-      }
-    } catch (err) {
-      setError('Failed to override guarantor approval');
+      setManualLoanError('Failed to record manual loan');
     }
   };
 
   const getStatusColor = (status: string): BadgeProps['variant'] => {
     switch (status) {
-      case 'pending':
-        return 'warning';
-      case 'approved':
-        return 'default';
-      case 'rejected':
-        return 'destructive';
-      case 'disbursed':
-        return 'secondary';
-      default:
-        return 'secondary';
+      case 'pending': return 'warning';
+      case 'approved': return 'default';
+      case 'rejected': return 'destructive';
+      case 'disbursed': return 'secondary';
+      default: return 'secondary';
     }
   };
 
   const getFIFOPosition = (loan: LoanApplication): number => {
-    const pendingLoans = loanApplications
+    const list = loanApplications
       .filter(l => l.status === 'pending')
-      .sort((a, b) => a.appliedAt.getTime() - b.appliedAt.getTime());
-
-    return pendingLoans.findIndex(l => l.id === loan.id) + 1;
+      .sort((a,b) => {
+        const dA = a.appliedAt instanceof Date ? a.appliedAt : new Date(a.appliedAt);
+        const dB = b.appliedAt instanceof Date ? b.appliedAt : new Date(b.appliedAt);
+        return dA.getTime() - dB.getTime();
+      });
+    return list.findIndex(l => l.id === loan.id) + 1;
   };
 
-  const pendingLoansCount = loanApplications.filter(loan => loan.status === 'pending').length;
-  const approvedLoansCount = loanApplications.filter(loan => loan.status === 'approved').length;
-  const totalLoanAmount = loanApplications
-    .filter(loan => loan.status === 'approved' || loan.status === 'disbursed')
-    .reduce((sum, loan) => sum + loan.amount, 0);
+  if (isLoading && !loanApplications.length) {
+    return <div className="p-8 text-center text-slate-500 animate-pulse font-medium">Loading loan applications...</div>;
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight text-slate-900">Loan Management</h2>
-          <p className="text-muted-foreground text-sm">
-            Review and approve loan applications (FIFO order)
-          </p>
+          <h2 className="text-3xl font-extrabold tracking-tight text-slate-900 leading-none">Loan Management</h2>
+          <p className="text-slate-500 text-sm mt-2 font-medium">Review and process member loan applications in FIFO order.</p>
         </div>
         <Button 
           onClick={() => {
             setManualLoanError('');
             setIsManualLoanDialogOpen(true);
           }}
-          className="bg-indigo-600 hover:bg-indigo-700 font-bold h-11 px-6 rounded-xl shadow-lg shadow-indigo-600/20 w-full sm:w-auto"
+          className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-12 px-6 rounded-xl shadow-lg shadow-indigo-600/20"
         >
+          <Coins className="w-5 h-5 mr-2" />
           Record Manual Loan
         </Button>
       </div>
 
       {(error || success) && (
-        <Alert variant={error ? "destructive" : "default"}>
-          <AlertDescription>{error || success}</AlertDescription>
+        <Alert variant={error ? "destructive" : "default"} className="rounded-xl border-2">
+          <AlertDescription className="font-semibold text-sm">{error || success}</AlertDescription>
         </Alert>
       )}
 
-      {/* Loan Statistics */}
+      {/* Stats Overview */}
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Applications</CardTitle>
-          </CardHeader>
+        <Card className="border-none shadow-sm bg-amber-50 rounded-2xl">
+          <CardHeader className="pb-2 text-amber-700 font-bold uppercase tracking-wider text-[10px]">Pending Cases</CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{pendingLoansCount}</div>
-            <p className="text-xs text-muted-foreground">
-              Awaiting review
-            </p>
+            <div className="text-4xl font-black text-amber-900">{loanApplications.filter(l => l.status === 'pending').length}</div>
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Approved Loans</CardTitle>
-          </CardHeader>
+        <Card className="border-none shadow-sm bg-emerald-50 rounded-2xl">
+          <CardHeader className="pb-2 text-emerald-700 font-bold uppercase tracking-wider text-[10px]">Approved (Total)</CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{approvedLoansCount}</div>
-            <p className="text-xs text-muted-foreground">
-              Ready for disbursement
-            </p>
+            <div className="text-4xl font-black text-emerald-900">{loanApplications.filter(l => l.status === 'approved' || l.status === 'disbursed').length}</div>
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Loan Value</CardTitle>
-          </CardHeader>
+        <Card className="border-none shadow-sm bg-indigo-50 rounded-2xl">
+          <CardHeader className="pb-2 text-indigo-700 font-bold uppercase tracking-wider text-[10px]">Total Disbursed Value</CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalLoanAmount)}</div>
-            <p className="text-xs text-muted-foreground">
-              Approved + disbursed
-            </p>
+            <div className="text-3xl font-black text-indigo-900">
+              {formatCurrency(loanApplications.filter(l => l.status === 'disbursed' || l.status === 'approved').reduce((s,l) => s+l.amount, 0))}
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Search */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-        <div className="relative w-full sm:max-w-sm">
-          <Input
-            placeholder="Search loans..."
+      {/* Filter Bar */}
+      <div className="flex items-center gap-4 bg-white p-3 rounded-2xl shadow-sm border border-slate-100">
+        <div className="relative flex-1 group">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+          <Input 
+            placeholder="Search by name, ID, status or purpose..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="h-11 pl-10 bg-slate-50 border-transparent focus:border-indigo-500/50 focus:bg-white rounded-xl font-medium"
+            className="h-11 pl-10 bg-slate-50 border-transparent focus:border-indigo-500/50 focus:bg-white rounded-xl font-medium transition-all"
           />
         </div>
-        <span className="text-sm font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">
-          {filteredLoans.length} loan(s) found
-        </span>
+        <div className="px-4 py-2 bg-slate-50 rounded-lg border border-slate-100 hidden sm:block">
+           <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">{filteredLoans.length} Applications</span>
+        </div>
       </div>
 
-      {/* Loans Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Loan Applications</CardTitle>
-          <CardDescription>
-            All loan applications sorted by application date (FIFO)
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
+      {/* Main Table */}
+      <Card className="border-none shadow-sm overflow-hidden rounded-2xl bg-white">
+        <Table>
+          <TableHeader className="bg-slate-50">
+            <TableRow className="hover:bg-transparent">
+              <TableHead className="w-[80px] font-bold text-slate-500">Queue</TableHead>
+              <TableHead className="font-bold text-slate-500">Member</TableHead>
+              <TableHead className="font-bold text-slate-500">Amount</TableHead>
+              <TableHead className="font-bold text-slate-500">Date Applied</TableHead>
+              <TableHead className="font-bold text-slate-500">Status</TableHead>
+              <TableHead className="text-right font-bold text-slate-500">Action</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredLoans.length === 0 ? (
               <TableRow>
-                <TableHead>Queue #</TableHead>
-                <TableHead>Member</TableHead>
-                <TableHead>Member ID</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Duration</TableHead>
-                <TableHead>Applied Date</TableHead>
-                <TableHead>Approved Date</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableCell colSpan={6} className="h-64 text-center text-slate-400 italic">No applications found matching your search</TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredLoans.map((loan) => {
-                const member = getMemberByLoanId(loan.memberId);
-                const fifoPosition = loan.status === 'pending' ? getFIFOPosition(loan) : null;
+            ) : filteredLoans.map((loan) => {
+              const member = getMemberByLoanId(loan.memberId);
+              const pos = loan.status === 'pending' ? getFIFOPosition(loan) : null;
+              const appDate = loan.appliedAt instanceof Date ? loan.appliedAt : new Date(loan.appliedAt);
 
-                return (
-                  <TableRow key={loan.id}>
-                    <TableCell>
-                      {fifoPosition ? (
-                        <Badge variant="outline">#{fifoPosition}</Badge>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {member ? `${member.firstName} ${member.lastName}` : 'Unknown'}
-                    </TableCell>
-                    <TableCell>{member?.memberNumber || 'N/A'}</TableCell>
-                    <TableCell>{formatCurrency(loan.amount)}</TableCell>
-                    <TableCell>{loan.duration} months</TableCell>
-                    <TableCell>{loan.appliedAt.toLocaleDateString()}</TableCell>
-                    <TableCell>
-                      {loan.reviewedAt && loan.status === 'approved' ? (
-                        loan.reviewedAt.toLocaleDateString()
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getStatusColor(loan.status)}>
-                        {loan.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleViewLoan(loan)}
-                      >
-                        Review
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </CardContent>
+              return (
+                <TableRow key={loan.id} className="hover:bg-slate-50/50 transition-colors">
+                  <TableCell>
+                    {pos ? (
+                      <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center font-bold text-indigo-600 text-xs border border-indigo-100">
+                        #{pos}
+                      </div>
+                    ) : <span className="text-slate-300">-</span>}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col">
+                      <span className="font-bold text-slate-900">{member ? `${member.firstName} ${member.lastName}` : 'Unknown Member'}</span>
+                      <span className="text-[10px] font-medium text-slate-500 leading-none mt-1">{member?.memberNumber || loan.memberId}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="font-bold text-slate-800">{formatCurrency(loan.amount)}</TableCell>
+                  <TableCell className="text-slate-500 text-sm">{appDate.toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric'})}</TableCell>
+                  <TableCell>
+                    <Badge variant={getStatusColor(loan.status)} className="rounded-full px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider">
+                      {loan.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => handleViewLoan(loan)}
+                      className="text-indigo-600 font-bold hover:text-indigo-700 hover:bg-indigo-50 rounded-lg"
+                    >
+                      Review Case
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
       </Card>
 
-      {/* Review Loan Modal */}
+      {/* ── Review Dialog ── */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-3xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Review Loan Application</DialogTitle>
-            <DialogDescription>
-              Review member eligibility and approve or reject the loan
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent className="max-w-3xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto rounded-3xl p-0 border-none shadow-2xl">
           {selectedLoan && selectedMember && (
-            <div className="space-y-6">
-              {/* Member Information */}
-              <div>
-                <h3 className="text-lg font-semibold mb-3">Member Information</h3>
-                <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-                  <div>
-                    <Label>Member Name</Label>
-                    <p className="text-sm">{selectedMember.firstName} {selectedMember.lastName}</p>
-                  </div>
-                  <div>
-                    <Label>Member ID</Label>
-                    <p className="text-sm">{selectedMember.memberNumber}</p>
-                  </div>
-                  <div>
-                    <Label>Savings Balance</Label>
-                    <p className="text-sm font-medium">{formatCurrency(selectedMember.savingsBalance)}</p>
-                  </div>
-                  <div>
-                    <Label>Current Loan Balance</Label>
-                    <p className="text-sm font-medium">{formatCurrency(selectedMember.loanBalance)}</p>
-                  </div>
-                  <div>
-                    <Label>Shares Balance</Label>
-                    <p className="text-sm font-medium">{formatCurrency(selectedMember.sharesBalance)}</p>
-                  </div>
-                  <div>
-                    <Label>Outstanding Dues</Label>
-                    <p className="text-sm font-medium">{formatCurrency(selectedMember.societyDues)}</p>
-                  </div>
-                </div>
+            <div className="flex flex-col h-full bg-white">
+              <div className="p-6 border-b bg-slate-50/50">
+                <DialogHeader>
+                  <DialogTitle className="text-2xl font-black text-slate-900">Application Review</DialogTitle>
+                  <DialogDescription className="font-medium">#{selectedLoan.id.slice(-8)} — Evaluation and Decision</DialogDescription>
+                </DialogHeader>
               </div>
+              
+              <div className="p-6 space-y-8">
+                {/* Member Info */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-4">
+                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b pb-1">Member Profile</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-[10px] text-slate-500 italic">Savings</Label>
+                        <p className="font-bold text-sm text-slate-900">{formatCurrency(selectedMember.savingsBalance)}</p>
+                      </div>
+                      <div>
+                        <Label className="text-[10px] text-slate-500 italic">Shares</Label>
+                        <p className="font-bold text-sm text-slate-900">{formatCurrency(selectedMember.sharesBalance)}</p>
+                      </div>
+                      <div className="col-span-2">
+                        <Label className="text-[10px] text-slate-500 italic">Tenure</Label>
+                        <p className="font-semibold text-xs text-slate-700">Member since {new Date(selectedMember.dateJoined).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                  </div>
 
-              {/* Loan Details */}
-              <div className="border-t pt-4">
-                <h3 className="text-lg font-semibold mb-3">Loan Application Details</h3>
-                <div className="flex items-center justify-between text-sm py-1 border-b border-slate-50">
-                      <span className="text-slate-500 font-medium">Projected Interest (Next Month):</span>
-                      <span className="font-bold text-indigo-700">
-                        {formatCurrency(getNextMonthInterestPreview(selectedMember)?.amount || 0)} 
-                        <span className="text-[10px] ml-1 opacity-70">(Locked-in)</span>
-                      </span>
+                  <div className="space-y-4">
+                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b pb-1">Application Stats</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-[10px] text-slate-500 italic">Requested</Label>
+                        <p className="font-black text-lg text-indigo-600">{formatCurrency(selectedLoan.amount)}</p>
+                      </div>
+                      <div>
+                        <Label className="text-[10px] text-slate-500 italic">Duration</Label>
+                        <p className="font-bold text-sm uppercase text-slate-900">{selectedLoan.duration} Months</p>
+                      </div>
                     </div>
-                <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-                  <div>
-                    <Label>Requested Amount</Label>
-                    <p className="text-sm font-medium">{formatCurrency(selectedLoan.amount)}</p>
                   </div>
-                  <div>
-                    <Label>Loan Duration</Label>
-                    <p className="text-sm">{selectedLoan.duration} months</p>
-                  </div>
-                  <div>
-                    <Label>Applied Date</Label>
-                    <p className="text-sm">{selectedLoan.appliedAt.toLocaleDateString()}</p>
-                  </div>
-                  {selectedLoan.status === 'pending' && (
-                    <div>
-                      <Label>Queue Position</Label>
-                      <p className="text-sm">#{getFIFOPosition(selectedLoan)} in line</p>
-                    </div>
-                  )}
                 </div>
-                <div className="mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 group">
-                  <div>
-                    <Label>Purpose</Label>
-                    <p className="text-sm">{selectedLoan.purpose}</p>
-                  </div>
-                  {selectedLoan.documentUrl && (
-                    <Button
-                      variant="ghost"
+
+                {/* Document Preview Link */}
+                {selectedLoan.documentUrl && (
+                  <div className="bg-indigo-50/50 p-4 rounded-2xl flex items-center justify-between border border-indigo-100/50">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
+                        <FileText className="h-5 w-5 text-indigo-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-900">Application Document</p>
+                        <p className="text-[10px] text-slate-500 font-medium">Scanned letter/PDF attached</p>
+                      </div>
+                    </div>
+                    <Button 
+                      variant="outline" 
                       size="sm"
                       onClick={() => {
                         setPreviewUrl(selectedLoan.documentUrl || null);
                         setIsPreviewOpen(true);
                       }}
-                      className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-full transition-colors h-auto"
+                      className="border-indigo-200 text-indigo-700 font-bold hover:bg-indigo-100 rounded-lg text-xs"
                     >
-                      <FileText className="h-3.5 w-3.5" />
-                      View Original Application
+                      Open Document
                     </Button>
-                  )}
-                </div>
-              </div>
+                  </div>
+                )}
 
-              {/* Guarantor Approvals */}
-              {guarantorRequests.length > 0 && (
-                <div className="border-t pt-4">
-                  <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                    <ShieldCheck className="h-5 w-5 text-violet-600" /> Guarantor Approvals
-                  </h3>
-                  <div className="space-y-2">
-                    {guarantorRequests.map(req => {
-                      const gMember = members.find(m => m.id === req.guarantorMemberId);
-                      return (
-                        <div key={req.id} className="flex items-center justify-between p-3 rounded-lg border">
-                          <div className="flex items-center gap-2">
-                            {req.status === 'approved' ? <ShieldCheck className="h-4 w-4 text-green-600" /> :
-                              req.status === 'declined' ? <ShieldX className="h-4 w-4 text-red-600" /> :
-                                <Shield className="h-4 w-4 text-slate-400" />}
-                            <span className="text-sm font-medium">
-                              {gMember ? `${gMember.firstName} ${gMember.lastName} (${gMember.memberNumber})` : req.guarantorMemberId}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Badge variant={req.status === 'approved' ? 'default' : req.status === 'declined' ? 'destructive' : 'secondary'}>
-                              {req.status}
-                            </Badge>
-                            {req.status === 'pending' && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleOverrideGuarantor(req.id)}
-                                className="h-7 px-2 text-[10px] font-bold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
-                              >
-                                Admin Override
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {guarantorRequests.some(r => r.status !== 'approved') && (
-                    <Alert className="mt-3">
-                      <ShieldX className="h-4 w-4" />
-                      <AlertDescription>
-                        <strong>Approval blocked:</strong> All guarantors must approve before this loan can be disbursed.
-                      </AlertDescription>
-                    </Alert>
-                  )}
+                {/* Interest Preview */}
+                <div className="p-4 bg-slate-900 rounded-2xl text-white shadow-xl shadow-slate-900/10">
+                   <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                         <Calculator className="h-4 w-4 text-emerald-400" />
+                         <span className="text-xs font-bold uppercase tracking-widest text-slate-400">Projected Monthly Interest</span>
+                      </div>
+                      <span className="text-xl font-black text-emerald-400">
+                         {formatCurrency(getNextMonthInterestPreview(selectedMember)?.amount || 0)}
+                      </span>
+                   </div>
+                   <p className="text-[10px] text-slate-500 mt-2 italic font-medium">Calculated based on current society rate of {getSocietySettings().loanInterestRate}%.</p>
                 </div>
-              )}
 
-              {/* Eligibility Check */}
-              <div className="border-t pt-4">
-                <h3 className="text-lg font-semibold mb-3">Eligibility Assessment</h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">No existing loan:</span>
-                    <Badge variant={selectedMember.loanBalance === 0 ? "default" : "destructive"}>
-                      {selectedMember.loanBalance === 0 ? "✓ Eligible" : "✗ Has existing loan"}
-                    </Badge>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">Dues up to date:</span>
-                    <Badge variant={selectedMember.societyDues === 0 ? "default" : "secondary"}>
-                      {selectedMember.societyDues === 0 ? "✓ Up to date" : "⚠ Outstanding dues"}
-                    </Badge>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">Loan amount ≤ 2x savings:</span>
-                    <Badge variant={selectedLoan.amount <= selectedMember.savingsBalance * 2 ? "default" : "destructive"}>
-                      {selectedLoan.amount <= selectedMember.savingsBalance * 2 ? "✓ Within limit" : "✗ Exceeds limit"}
-                    </Badge>
+                {/* Guarantors */}
+                {guarantorRequests.length > 0 && (
+                   <div className="space-y-4">
+                      <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b pb-1 flex items-center gap-2">
+                        <ShieldCheck className="h-3.5 w-3.5" /> Guarantor Status
+                      </h4>
+                      <div className="grid gap-3">
+                        {guarantorRequests.map(req => {
+                          const gMember = members.find(m => m.id === req.guarantorMemberId);
+                          const isPending = req.status === 'pending';
+                          return (
+                            <div key={req.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50/30">
+                              <div className="flex items-center gap-3">
+                                <div className={`w-2 h-2 rounded-full ${req.status === 'approved' ? 'bg-emerald-500' : req.status === 'declined' ? 'bg-rose-500' : 'bg-amber-500'}`} />
+                                <span className="text-sm font-bold text-slate-700">{gMember ? `${gMember.firstName} ${gMember.lastName}` : req.guarantorMemberId}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge variant={req.status === 'approved' ? 'default' : req.status === 'declined' ? 'destructive' : 'secondary'} className="rounded-full font-bold text-[9px] px-2">
+                                  {req.status}
+                                </Badge>
+                                {isPending && (
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={() => handleOverrideGuarantor(req.id)}
+                                    className="h-7 text-[9px] font-black text-indigo-600 hover:bg-indigo-50 bg-white border border-indigo-100 rounded-lg"
+                                  >
+                                    Force Approve
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                   </div>
+                )}
+
+                {/* Eligibility Indicators */}
+                <div className="space-y-4">
+                  <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b pb-1">Automated Eligibility Check</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50">
+                      <span className="text-xs font-bold text-slate-600">Existing Loan</span>
+                      <Badge variant={selectedMember.loanBalance === 0 ? "default" : "destructive"} className="font-bold">
+                        {selectedMember.loanBalance === 0 ? "✓ CLEAR" : "✗ ACTIVE"}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50">
+                      <span className="text-xs font-bold text-slate-600">2x Collateral</span>
+                      <Badge variant={selectedLoan.amount <= (selectedMember.savingsBalance + selectedMember.sharesBalance) * 2 ? "default" : "destructive"}>
+                        {selectedLoan.amount <= (selectedMember.savingsBalance + selectedMember.sharesBalance) * 2 ? "✓ VALID" : "✗ EXCEEDED"}
+                      </Badge>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Review Notes */}
-              {selectedLoan.status === 'pending' && (
-                <div className="border-t pt-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="reviewNotes">Review Notes (Optional)</Label>
-                    <Textarea
-                      id="reviewNotes"
+                {/* Review Form */}
+                {selectedLoan.status === 'pending' && (
+                  <div className="space-y-3 pt-4 border-t">
+                    <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Official Review Notes</Label>
+                    <Textarea 
+                      placeholder="Enter the rationale for approval or rejection..."
                       value={reviewNotes}
                       onChange={(e) => setReviewNotes(e.target.value)}
-                      placeholder="Add any notes about your decision..."
-                      rows={3}
+                      className="min-h-[100px] rounded-2xl border-slate-200 focus:border-indigo-400 transition-all text-sm font-medium"
                     />
                   </div>
-                </div>
-              )}
+                )}
+              </div>
 
-              {/* Previous Review (if any) */}
-              {selectedLoan.status !== 'pending' && selectedLoan.reviewNotes && (
-                <div className="border-t pt-4">
-                  <h3 className="text-lg font-semibold mb-3">Review Details</h3>
-                  <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-                    <div>
-                      <Label>Reviewed By</Label>
-                      <p className="text-sm">{selectedLoan.reviewedBy}</p>
-                    </div>
-                    <div>
-                      <Label>Reviewed Date</Label>
-                      <p className="text-sm">{selectedLoan.reviewedAt?.toLocaleDateString()}</p>
-                    </div>
+              <div className="p-6 bg-slate-50 border-t flex flex-col sm:flex-row gap-3 justify-end items-center mt-auto">
+                <Button variant="ghost" onClick={() => setIsDialogOpen(false)} className="font-bold order-2 sm:order-1 w-full sm:w-auto">Dismiss</Button>
+                {selectedLoan.status === 'pending' && (
+                  <div className="flex gap-3 w-full sm:w-auto order-1 sm:order-2">
+                    <Button variant="destructive" onClick={handleRejectLoan} className="flex-1 sm:flex-none font-bold rounded-xl shadow-lg shadow-rose-500/10">Reject</Button>
+                    <Button 
+                      onClick={handleApproveLoan}
+                      disabled={guarantorRequests.some(r => r.status === 'pending')}
+                      className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 font-black rounded-xl shadow-lg shadow-emerald-600/20"
+                    >
+                      Approve & Disburse
+                    </Button>
                   </div>
-                  <div className="mt-4">
-                    <Label>Review Notes</Label>
-                    <p className="text-sm">{selectedLoan.reviewNotes}</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Actions */}
-              {selectedLoan.status === 'pending' && (() => {
-                const allGuarantorsApproved = guarantorRequests.length === 0 || guarantorRequests.every(r => r.status === 'approved');
-                return (
-                  <div className="flex flex-col gap-2 pt-4 border-t">
-                    {!allGuarantorsApproved && (
-                      <Alert variant="destructive">
-                        <AlertDescription>Loan cannot be approved until all guarantors have approved their requests.</AlertDescription>
-                      </Alert>
-                    )}
-                    <div className="flex justify-end space-x-2">
-                      <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-                      <Button variant="destructive" onClick={handleRejectLoan}>Reject Loan</Button>
-                      <Button onClick={handleApproveLoan} disabled={!allGuarantorsApproved}>Approve Loan</Button>
-                    </div>
-                  </div>
-                );
-              })()}
+                )}
+              </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
 
-      {/* Manual Loan Recording Modal */}
+      {/* ── Manual Loan Dialog ── */}
       <Dialog open={isManualLoanDialogOpen} onOpenChange={setIsManualLoanDialogOpen}>
-        <DialogContent className="max-w-2xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Record Manual Loan Application</DialogTitle>
-            <DialogDescription>
-              Enter details for members who cannot use the online portal
-            </DialogDescription>
+        <DialogContent className="max-w-3xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto rounded-3xl p-6 shadow-2xl">
+          <DialogHeader className="mb-6">
+            <DialogTitle className="text-2xl font-black text-slate-900">Record Internal Loan</DialogTitle>
+            <DialogDescription className="font-medium text-slate-500 uppercase tracking-widest text-[10px]">Manual Entry System</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+
+          <div className="space-y-6">
             {manualLoanError && (
-              <Alert variant="destructive">
-                <AlertDescription>{manualLoanError}</AlertDescription>
+              <Alert variant="destructive" className="rounded-xl border-2">
+                <AlertDescription className="font-bold text-sm">{manualLoanError}</AlertDescription>
               </Alert>
             )}
-            <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label>Select Member</Label>
-                <select
-                  className="w-full p-2 border rounded-md text-sm"
+                <Label className="font-bold text-slate-700">Member Selection</Label>
+                <select 
+                  className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-xl font-medium text-sm focus:ring-2 focus:ring-indigo-500/20 transition-all outline-none"
                   value={manualLoanData.memberId}
-                  onChange={(e) => {
-                    setManualLoanError('');
-                    setManualLoanData({ ...manualLoanData, memberId: e.target.value });
-                  }}
+                  onChange={(e) => setManualLoanData({...manualLoanData, memberId: e.target.value})}
                 >
-                  <option value="">Choose a member...</option>
-                  {members.map(m => {
-                    const hasBalance = m.loanBalance > 0;
-                    const canApplyWithBalance = m.allowNewLoanWithBalance;
-                    
-                    const joinDate = new Date(m.dateJoined);
-                    const sixMonthsAgo = new Date();
-                    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-                    const isNewMember = joinDate > sixMonthsAgo;
-                    const canApplyNew = m.loanEligibilityOverride;
+                   <option value="">Select a member...</option>
+                   {members.map(m => {
+                     const registrationDate = m.dateJoined instanceof Date ? m.dateJoined : new Date(m.dateJoined);
+                     const monthsAsMember = (new Date().getTime() - registrationDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44);
+                     const hasOutstandingLoan = (m.loanBalance || 0) > 0;
+                     const isTenureInvalid = monthsAsMember < 6;
+                     const isDisabled = hasOutstandingLoan || isTenureInvalid;
+                     
+                     let suffix = "";
+                     if (hasOutstandingLoan) suffix = " (Outstanding Loan)";
+                     else if (isTenureInvalid) suffix = ` (less than ${Math.floor(monthsAsMember)}m tenure)`;
 
-                    const isBlocked = (hasBalance && !canApplyWithBalance) || (isNewMember && !canApplyNew);
-                    const blockReason = hasBalance && !canApplyWithBalance ? '(Outstanding Balance)' : 
-                                       isNewMember && !canApplyNew ? '(New Member)' : '';
-
-                    return (
-                      <option 
-                        key={m.id} 
-                        value={m.id}
-                        disabled={isBlocked}
-                        className={isBlocked ? 'text-slate-400 italic' : ''}
-                      >
-                        {m.firstName} {m.lastName} ({m.memberNumber}) {blockReason}
-                      </option>
-                    );
-                  })}
+                     return (
+                       <option key={m.id} value={m.id} disabled={isDisabled} className={isDisabled ? "text-slate-400" : ""}>
+                         {m.firstName} {m.lastName} ({m.memberNumber}){suffix}
+                       </option>
+                     );
+                   })}
                 </select>
-              </div>
-              <div className="space-y-2">
-                <Label>Loan Amount (₦)</Label>
-                <Input
-                  type="number"
-                  placeholder="e.g. 500000"
-                  value={manualLoanData.amount}
-                  onChange={(e) => setManualLoanData({ ...manualLoanData, amount: e.target.value })}
-                />
-                {manualLoanData.memberId && (() => {
-                  const m = members.find(mem => mem.id === manualLoanData.memberId);
-                  if (!m) return null;
-                  return (
-                    <div className="flex gap-4 p-2 bg-indigo-50 rounded text-[11px] font-medium text-indigo-700">
-                      <div>Savings: {formatCurrency(m.savingsBalance)}</div>
-                      <div>Shares: {formatCurrency(m.sharesBalance)}</div>
-                      <div className="font-bold border-l pl-2 border-indigo-200">
-                        Max Loan (2x): {formatCurrency(((m.savingsBalance || 0) + (m.sharesBalance || 0)) * 2)}
-                      </div>
+
+                {manualLoanData.memberId && (
+                  <div className="grid grid-cols-2 gap-3 mt-2 animate-in fade-in slide-in-from-top-1 duration-300">
+                    <div className="bg-emerald-50/50 p-2 rounded-lg border border-emerald-100">
+                       <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Total Shares</p>
+                       <p className="text-sm font-bold text-emerald-700">{formatCurrency(members.find(m => m.id === manualLoanData.memberId)?.sharesBalance || 0)}</p>
                     </div>
-                  );
-                })()}
-              </div>
-              <div className="space-y-2">
-                <Label>Loan Duration (Months)</Label>
-                <select
-                  className="w-full p-2 border rounded-md text-sm"
-                  value={manualLoanData.duration}
-                  onChange={(e) => setManualLoanData({ ...manualLoanData, duration: e.target.value })}
-                >
-                  {[6, 12, 18, 24, 36, 48].map(m => (
-                    <option key={m} value={m.toString()}>{m} months</option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label>Guarantor 1</Label>
-                <select
-                  className="w-full p-2 border rounded-md text-sm"
-                  value={manualLoanData.guarantor1Id}
-                  onChange={(e) => setManualLoanData({ ...manualLoanData, guarantor1Id: e.target.value })}
-                >
-                  <option value="">Select First Guarantor...</option>
-                  {members
-                    .filter(m => m.id !== manualLoanData.memberId)
-                    .map(m => (
-                      <option key={m.id} value={m.id}>
-                        {m.firstName} {m.lastName} ({m.memberNumber})
-                      </option>
-                    ))}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label>Guarantor 2</Label>
-                <select
-                  className="w-full p-2 border rounded-md text-sm"
-                  value={manualLoanData.guarantor2Id}
-                  onChange={(e) => setManualLoanData({ ...manualLoanData, guarantor2Id: e.target.value })}
-                >
-                  <option value="">Select Second Guarantor...</option>
-                  {members
-                    .filter(m => m.id !== manualLoanData.memberId && m.id !== manualLoanData.guarantor1Id)
-                    .map(m => (
-                      <option key={m.id} value={m.id}>
-                        {m.firstName} {m.lastName} ({m.memberNumber})
-                      </option>
-                    ))}
-                </select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Purpose of Loan</Label>
-              <Input
-                placeholder="e.g. Small business expansion"
-                value={manualLoanData.purpose}
-                onChange={(e) => setManualLoanData({ ...manualLoanData, purpose: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Original Application Document (Scan/PDF)</Label>
-              <div className="flex items-center gap-4">
-                <Input
-                  type="file"
-                  accept=".pdf,image/*"
-                  onChange={handleFileChange}
-                  className="cursor-pointer"
-                />
-                {manualLoanData.documentUrl && (
-                  <Badge variant="default" className="bg-green-100 text-green-700 hover:bg-green-200">
-                    File Ready
-                  </Badge>
+                    <div className="bg-indigo-50/50 p-2 rounded-lg border border-indigo-100">
+                       <p className="text-[9px] font-black text-indigo-600 uppercase tracking-widest">Total Savings</p>
+                       <p className="text-sm font-bold text-indigo-700">{formatCurrency(members.find(m => m.id === manualLoanData.memberId)?.savingsBalance || 0)}</p>
+                    </div>
+                  </div>
                 )}
               </div>
-              <p className="text-[10px] text-muted-foreground">
-                Upload the scanned letter or PDF provided by the member.
-              </p>
+
+              <div className="space-y-2">
+                <Label className="font-bold text-slate-700">Principal Amount (₦)</Label>
+                <Input 
+                  type="number"
+                  placeholder="500000"
+                  value={manualLoanData.amount}
+                  onChange={(e) => setManualLoanData({...manualLoanData, amount: e.target.value})}
+                  className="h-11 rounded-xl font-bold bg-slate-50"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="font-bold text-slate-700">Tenure (Months)</Label>
+                <select 
+                   className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-xl font-medium text-sm outline-none"
+                   value={manualLoanData.duration}
+                   onChange={(e) => setManualLoanData({...manualLoanData, duration: e.target.value})}
+                >
+                   {[6, 12, 18, 24, 36, 48].map(m => (
+                     <option key={m} value={m.toString()}>{m} Months</option>
+                   ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="font-bold text-slate-700">Scan Attachment (Optional)</Label>
+                <Input 
+                   type="file" 
+                   accept="image/*,.pdf"
+                   onChange={handleFileChange}
+                   className="h-11 rounded-xl file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:bg-indigo-50 file:text-indigo-700"
+                />
+              </div>
             </div>
-          </div>
-          <div className="flex justify-end space-x-2 border-t pt-4">
-            <Button variant="outline" onClick={() => setIsManualLoanDialogOpen(false)}>Cancel</Button>
-            <Button 
-              className="bg-indigo-600 hover:bg-indigo-700"
-              onClick={handleManualLoanSubmit}
-            >
-              Record Application
-            </Button>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t">
+               <div className="space-y-2">
+                  <Label className="font-bold text-slate-700">First Guarantor</Label>
+                   <select 
+                    className="w-full h-10 px-3 bg-slate-50 border-slate-100 rounded-xl text-xs outline-none"
+                    value={manualLoanData.guarantor1Id}
+                    onChange={(e) => setManualLoanData({...manualLoanData, guarantor1Id: e.target.value})}
+                   >
+                     <option value="">Select internal guarantor 1...</option>
+                     {members.filter(m => m.id !== manualLoanData.memberId).map(m => (
+                       <option key={m.id} value={m.id}>{m.firstName} {m.lastName}</option>
+                     ))}
+                   </select>
+               </div>
+               <div className="space-y-2">
+                  <Label className="font-bold text-slate-700">Second Guarantor</Label>
+                   <select 
+                    className="w-full h-10 px-3 bg-slate-50 border-slate-100 rounded-xl text-xs outline-none"
+                    value={manualLoanData.guarantor2Id}
+                    onChange={(e) => setManualLoanData({...manualLoanData, guarantor2Id: e.target.value})}
+                   >
+                     <option value="">Select internal guarantor 2...</option>
+                     {members.filter(m => m.id !== manualLoanData.memberId && m.id !== manualLoanData.guarantor1Id).map(m => (
+                       <option key={m.id} value={m.id}>{m.firstName} {m.lastName}</option>
+                     ))}
+                   </select>
+               </div>
+            </div>
+
+            <div className="pt-6 flex justify-end gap-3">
+              <Button variant="ghost" onClick={() => setIsManualLoanDialogOpen(false)} className="font-bold">Cancel</Button>
+              <Button onClick={handleManualLoanSubmit} className="bg-indigo-600 hover:bg-indigo-700 font-black rounded-xl px-8 h-12 shadow-xl shadow-indigo-600/20">Commit Record</Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Document Preview Modal */}
+      {/* ── Document Preview Modal ── */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-        <DialogContent className="max-w-4xl h-[85vh] flex flex-col p-6">
-          <DialogHeader className="pb-4 border-b">
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-indigo-600" />
-              Original Application Document
-            </DialogTitle>
-            <DialogDescription>
-              Viewing the uploaded record for this loan application
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex-1 min-h-0 overflow-hidden bg-slate-50 rounded-lg border mt-4">
+        <DialogContent className="max-w-5xl h-[90vh] flex flex-col p-0 border-none rounded-3xl overflow-hidden shadow-2xl bg-slate-900/40 backdrop-blur-xl">
+          <div className="bg-white/95 p-6 border-b flex items-center justify-between">
+             <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center">
+                   <FileText className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                   <h3 className="text-lg font-black text-slate-900 leading-none">Record Evidence</h3>
+                   <p className="text-[10px] font-bold text-slate-500 uppercase mt-1 tracking-widest">Digital Archive — Secured View</p>
+                </div>
+             </div>
+             <Button variant="ghost" size="icon" onClick={() => setIsPreviewOpen(false)} className="rounded-full hover:bg-slate-100 italic font-medium">ESC</Button>
+          </div>
+          
+          <div className="flex-1 bg-slate-950 p-2 sm:p-4 overflow-hidden flex items-center justify-center relative">
             {previewUrl ? (
               previewUrl.startsWith('data:application/pdf') ? (
-                <iframe 
-                  src={previewUrl} 
-                  className="w-full h-full border-0" 
-                  title="PDF Document Preview"
-                />
+                <iframe src={previewUrl} className="w-full h-full rounded-2xl border-none shadow-2xl" />
               ) : (
-                <div className="w-full h-full overflow-auto p-4 flex items-center justify-center">
-                  <img 
-                    src={previewUrl} 
-                    alt="Application Document" 
-                    className="max-w-full max-h-full object-contain shadow-sm border rounded-sm" 
-                  />
+                <div className="w-full h-full flex items-center justify-center overflow-auto p-4 custom-scrollbar">
+                  <img src={previewUrl} alt="Document" className="max-w-full max-h-full object-contain rounded-lg shadow-2xl border border-white/10" />
                 </div>
               )
             ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground gap-2">
-                <FileText className="h-10 w-10 opacity-20" />
-                <p>No document to preview</p>
+              <div className="text-slate-500 flex flex-col items-center gap-4 py-20 italic">
+                <Shield className="w-12 h-12 opacity-20" />
+                No document found in archive for this record
               </div>
             )}
           </div>
-          <div className="flex justify-end pt-4 border-t mt-4">
-            <Button 
-              variant="outline" 
-              onClick={() => setIsPreviewOpen(false)}
-              className="font-bold"
-            >
-              Close Preview
-            </Button>
+          
+          <div className="bg-white/95 p-4 flex justify-end gap-3 border-t">
+             <Button variant="outline" onClick={() => setIsPreviewOpen(false)} className="font-black rounded-xl h-12 px-10 border-slate-200">Close Archive</Button>
           </div>
         </DialogContent>
       </Dialog>

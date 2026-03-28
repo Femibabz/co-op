@@ -1,6 +1,6 @@
 import { User, Member, MembershipApplication, LoanApplication, Transaction, ByLaw, LoginSession, Society, GuarantorRequest, BroadcastMessage, Levy } from '@/types';
 import { supabase, isSupabaseConfigured } from './supabase';
-import { calculateAccumulatedInterest } from './loan-utils';
+// import { calculateAccumulatedInterest } from './loan-utils';
 
 /**
  * Session-level cache: tracks which member IDs have already had their
@@ -2946,6 +2946,8 @@ export class MockDatabase {
       return member;
     }
 
+    const { calculateAccumulatedInterest, getCurrentInterestRate } = require('./loan-utils');
+
     // Session guard: don't charge the same member twice in one browser session.
     // The member.id key is used so each reload of the page gives a fresh session.
     if (interestSessionCache.has(member.id)) {
@@ -2961,9 +2963,6 @@ export class MockDatabase {
 
     // If there's pending interest to charge, update the member
     if (calculation.monthsToCalculate > 0 && calculation.totalInterest > 0) {
-
-      // Import helper inside to avoid circular deps
-      const { getCurrentInterestRate } = require('./loan-utils');
       const nextRate = getCurrentInterestRate(member);
       const nextInterest = Math.round((member.loanBalance! * nextRate) / 100);
 

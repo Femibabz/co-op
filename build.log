@@ -1,0 +1,60 @@
+
+> nextjs-shadcn@0.1.0 build
+> next build
+
+   Γû▓ Next.js 15.5.7
+   - Environments: .env.local
+
+   Creating an optimized production build ...
+ Γ£ô Compiled successfully in 18.6s
+   Skipping validation of types
+   Skipping linting
+   Collecting page data ...
+   Generating static pages (0/33) ...
+   Generating static pages (8/33) 
+   Generating static pages (16/33) 
+   Generating static pages (24/33) 
+ Γ£ô Generating static pages (33/33)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                 Size  First Load JS
+Γöî Γùï /                                    6.23 kB         184 kB
+Γö£ Γùï /_not-found                            994 B         103 kB
+Γö£ Γùï /admin                                6.3 kB         179 kB
+Γö£ Γùï /admin/access-logs                   5.63 kB         183 kB
+Γö£ Γùï /admin/applications                  6.29 kB         199 kB
+Γö£ Γùï /admin/bylaws                        7.33 kB         215 kB
+Γö£ Γùï /admin/calculate-interest            6.64 kB         184 kB
+Γö£ Γùï /admin/change-password               6.61 kB         184 kB
+Γö£ Γùï /admin/financial-updates             8.45 kB         216 kB
+Γö£ Γùï /admin/loans                         9.47 kB         199 kB
+Γö£ Γùï /admin/members                       7.63 kB         201 kB
+Γö£ Γùï /admin/process-payment               5.67 kB         213 kB
+Γö£ Γùï /admin/settings                      11.1 kB         219 kB
+Γö£ Γùï /admin/transactions                  4.99 kB         214 kB
+Γö£ Γùï /apply                               8.89 kB         216 kB
+Γö£ Γùï /member                              8.77 kB         190 kB
+Γö£ Γùï /member/apply-loan                    7.8 kB         212 kB
+Γö£ Γùï /member/bylaws                       6.66 kB         196 kB
+Γö£ Γùï /member/levies                       6.47 kB         187 kB
+Γö£ Γùï /member/profile                      9.43 kB         187 kB
+Γö£ Γùï /member/transactions                 3.44 kB         212 kB
+Γö£ Γùï /seed-bylaws                         4.29 kB         182 kB
+Γö£ Γùï /seed-users                          4.57 kB         182 kB
+Γö£ Γùï /super-admin                         6.04 kB         187 kB
+Γö£ Γùï /super-admin/access-logs             2.17 kB         180 kB
+Γö£ Γùï /super-admin/database-setup          5.62 kB         167 kB
+Γö£ Γùï /super-admin/members                 7.23 kB         185 kB
+Γö£ Γùï /super-admin/societies               6.35 kB         196 kB
+Γö£ Γùï /super-admin/users                   2.98 kB         180 kB
+Γö£ Γùï /test-connection                     6.54 kB         187 kB
+Γöö Γùï /test-flow                           3.79 kB         185 kB
++ First Load JS shared by all             102 kB
+  Γö£ chunks/1255-404bb8de49c90395.js      45.8 kB
+  Γö£ chunks/4bd1b696-f785427dddbba9fb.js  54.2 kB
+  Γöö other shared chunks (total)          2.01 kB
+
+
+Γùï  (Static)  prerendered as static content
+
