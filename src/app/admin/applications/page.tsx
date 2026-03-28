@@ -16,7 +16,7 @@ import { MembershipApplication, GuarantorRequest } from '@/types';
 import {
   Users, Search, UserCheck, UserX, Clock,
   CheckCircle2, XCircle, ChevronRight, FileText,
-  AlertCircle, ShieldCheck, Mail, Phone, MapPin, Briefcase,
+  AlertCircle, ShieldCheck, ShieldX, Shield, Mail, Phone, MapPin, Briefcase,
   DollarSign, Calendar, MessageSquare, Save, Trash2, Edit
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -34,22 +34,63 @@ export default function ApplicationsPage() {
   const [guarantorRequests, setGuarantorRequests] = useState<GuarantorRequest[]>([]);
 
   useEffect(() => {
-    if (user?.societyId) {
+    console.log('AdminApplicationsPage: Auth user updated:', user?.email, 'Role:', user?.role, 'Society:', user?.societyId);
+    if (user?.societyId || user?.role === 'super_admin') {
       loadApplications();
       loadMembers();
     }
   }, [user]);
 
+  useEffect(() => {
+    if (selectedApplication) {
+      console.log('Selected Application for Review:', {
+        id: selectedApplication.id,
+        name: `${selectedApplication.firstName} ${selectedApplication.lastName}`,
+        status: selectedApplication.status,
+        guarantorIds: selectedApplication.guarantorIds,
+        appliedAt: selectedApplication.appliedAt
+      });
+    }
+  }, [selectedApplication]);
+
   const loadApplications = async () => {
-    if (!user?.societyId) return;
-    const allApplications = await db.getApplications(user.societyId);
-    setApplications(allApplications);
+    try {
+      if (user?.role === 'admin' && !user?.societyId) {
+        console.warn('MembershipApplications: Society admin missing societyId');
+        return;
+      }
+      
+      const societyIdFilter = user?.role === 'super_admin' ? undefined : user?.societyId;
+      const allApplications = await db.getApplications(societyIdFilter);
+      setApplications(Array.isArray(allApplications) ? allApplications : []);
+    } catch (err) {
+      console.error('Error loading applications:', err);
+      setError('Failed to load applications from database.');
+    }
   };
 
   const loadMembers = async () => {
-    if (!user?.societyId) return;
-    const allMembers = await db.getMembers(user.societyId);
-    setMembers(allMembers);
+    try {
+      const societyIdFilter = user?.role === 'super_admin' ? undefined : user?.societyId;
+      
+      if (!societyIdFilter && user?.role !== 'super_admin') return;
+      
+      const allMembers = await db.getMembers(societyIdFilter);
+      setMembers(Array.isArray(allMembers) ? allMembers : []);
+    } catch (err) {
+      console.error('Error loading members for lookup:', err);
+    }
+  };
+
+  const formatDate = (date: any) => {
+    if (!date) return 'N/A';
+    try {
+      const d = new Date(date);
+      if (isNaN(d.getTime())) return 'Invalid Date';
+      return d.toLocaleDateString();
+    } catch {
+      return 'N/A';
+    }
   };
 
   const formatCurrency = (amount: number) => {
@@ -67,11 +108,19 @@ export default function ApplicationsPage() {
   );
 
   const handleViewApplication = async (application: MembershipApplication) => {
-    setSelectedApplication(application);
-    setReviewNotes('');
-    const reqs = await db.getGuarantorRequestsForApplication(application.id);
-    setGuarantorRequests(reqs);
-    setIsDialogOpen(true);
+    try {
+      setSelectedApplication(application);
+      setReviewNotes(application.reviewNotes || '');
+      setError('');
+      setSuccess('');
+      
+      const reqs = await db.getGuarantorRequestsForApplication(application.id);
+      setGuarantorRequests(Array.isArray(reqs) ? reqs : []);
+      setIsDialogOpen(true);
+    } catch (err) {
+      console.error('Failed to view application details:', err);
+      setError('Could not load application details. Please try again.');
+    }
   };
 
   const handleApproveApplication = async () => {
@@ -290,7 +339,7 @@ export default function ApplicationsPage() {
                   </TableCell>
                   <TableCell>{application.email}</TableCell>
                   <TableCell>{application.phone}</TableCell>
-                  <TableCell>{application.appliedAt.toLocaleDateString()}</TableCell>
+                  <TableCell>{formatDate(application.appliedAt)}</TableCell>
                   <TableCell>
                     <Badge variant={getStatusColor(application.status)}>
                       {application.status}
@@ -341,7 +390,7 @@ export default function ApplicationsPage() {
                   </div>
                   <div>
                     <Label>Applied Date</Label>
-                    <p className="text-sm">{selectedApplication.appliedAt.toLocaleDateString()}</p>
+                    <p className="text-sm">{formatDate(selectedApplication.appliedAt)}</p>
                   </div>
                 </div>
                 <div className="mt-4">
@@ -355,90 +404,74 @@ export default function ApplicationsPage() {
                 <h3 className="text-lg font-semibold mb-3">Guarantor Information</h3>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {/* Primary Guarantor */}
-                  {(selectedApplication.guarantor1Id || (selectedApplication.guarantorIds && selectedApplication.guarantorIds.length > 0)) ? (() => {
-                    const gId = selectedApplication.guarantor1Id || selectedApplication.guarantorIds?.[0];
-                    const guarantor = members.find(m => m.id === gId);
-                    return (
-                      <div className="p-3 border rounded-lg bg-blue-50">
-                        <h4 className="font-medium text-blue-900 mb-2">Primary Guarantor</h4>
-                        <div className="space-y-1 text-sm">
-                          <div>
-                            <Label className="text-xs">Name</Label>
-                            <p>{guarantor ? `${guarantor.firstName} ${guarantor.lastName}` : 'N/A'}</p>
+                  {(() => {
+                    try {
+                      if (!(selectedApplication.guarantor1Id || (selectedApplication.guarantorIds && selectedApplication.guarantorIds.length > 0))) {
+                        return (
+                          <div className="p-3 border rounded-lg bg-blue-50">
+                            <h4 className="font-medium text-blue-900 mb-2">Primary Guarantor (None)</h4>
+                            <p className="text-xs text-slate-500">No guarantor information provided.</p>
                           </div>
-                          <div>
-                            <Label className="text-xs">Member Number</Label>
-                            <p>{guarantor?.memberNumber || 'N/A'}</p>
-                          </div>
-                          <div>
-                            <Label className="text-xs">Phone Number</Label>
-                            <p>{guarantor?.phone || 'N/A'}</p>
-                          </div>
-                          <div>
-                            <Label className="text-xs">Email</Label>
-                            <p className="break-all">{guarantor?.email || 'N/A'}</p>
+                        );
+                      }
+                      
+                      const gId = selectedApplication.guarantor1Id || selectedApplication.guarantorIds?.[0];
+                      const guarantor = Array.isArray(members) ? members.find(m => m.id === gId) : null;
+                      
+                      return (
+                        <div className="p-3 border rounded-lg bg-blue-50">
+                          <h4 className="font-medium text-blue-900 mb-2">Primary Guarantor</h4>
+                          <div className="space-y-1 text-sm">
+                            <div>
+                              <Label className="text-xs">Name</Label>
+                              <p>{guarantor ? `${guarantor.firstName} ${guarantor.lastName}` : 'N/A'}</p>
+                            </div>
+                            <div>
+                              <Label className="text-xs">Member Number</Label>
+                              <p>{guarantor?.memberNumber || 'N/A'}</p>
+                            </div>
+                            <div>
+                              <Label className="text-xs">Phone Number</Label>
+                              <p>{guarantor?.phone || 'N/A'}</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })() : (
-                    <div className="p-3 border rounded-lg bg-blue-50">
-                      <h4 className="font-medium text-blue-900 mb-2">Primary Guarantor (Legacy)</h4>
-                      <div className="space-y-1 text-sm">
-                        <div>
-                          <Label className="text-xs">Name</Label>
-                          <p>{(selectedApplication as any).guarantor1Name || 'N/A'}</p>
-                        </div>
-                        <div>
-                          <Label className="text-xs">Member Number</Label>
-                          <p>{(selectedApplication as any).guarantor1MemberNumber || 'N/A'}</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                      );
+                    } catch (e) {
+                      console.error('Crash in Primary Guarantor render:', e);
+                      return <div className="p-3 border border-red-200 rounded-lg bg-red-50 text-xs text-red-600">Error rendering guarantor info</div>;
+                    }
+                  })()}
 
                   {/* Secondary Guarantor */}
-                  {(selectedApplication.guarantor2Id || (selectedApplication.guarantorIds && selectedApplication.guarantorIds.length > 1)) ? (() => {
-                    const gId = selectedApplication.guarantor2Id || selectedApplication.guarantorIds?.[1];
-                    const guarantor = members.find(m => m.id === gId);
-                    return (
-                      <div className="p-3 border rounded-lg bg-green-50">
-                        <h4 className="font-medium text-green-900 mb-2">Secondary Guarantor</h4>
-                        <div className="space-y-1 text-sm">
-                          <div>
-                            <Label className="text-xs">Name</Label>
-                            <p>{guarantor ? `${guarantor.firstName} ${guarantor.lastName}` : 'N/A'}</p>
-                          </div>
-                          <div>
-                            <Label className="text-xs">Member Number</Label>
-                            <p>{guarantor?.memberNumber || 'N/A'}</p>
-                          </div>
-                          <div>
-                            <Label className="text-xs">Phone Number</Label>
-                            <p>{guarantor?.phone || 'N/A'}</p>
-                          </div>
-                          <div>
-                            <Label className="text-xs">Email</Label>
-                            <p className="break-all">{guarantor?.email || 'N/A'}</p>
+                  {(() => {
+                    try {
+                      if (!(selectedApplication.guarantor2Id || (selectedApplication.guarantorIds && selectedApplication.guarantorIds.length > 1))) {
+                        return null; // Don't show if missing
+                      }
+                      
+                      const gId = selectedApplication.guarantor2Id || selectedApplication.guarantorIds?.[1];
+                      const guarantor = Array.isArray(members) ? members.find(m => m.id === gId) : null;
+                      
+                      return (
+                        <div className="p-3 border rounded-lg bg-green-50">
+                          <h4 className="font-medium text-green-900 mb-2">Secondary Guarantor</h4>
+                          <div className="space-y-1 text-sm">
+                            <div>
+                              <Label className="text-xs">Name</Label>
+                              <p>{guarantor ? `${guarantor.firstName} ${guarantor.lastName}` : 'N/A'}</p>
+                            </div>
+                            <div>
+                              <Label className="text-xs">Member Number</Label>
+                              <p>{guarantor?.memberNumber || 'N/A'}</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })() : (
-                    <div className="p-3 border rounded-lg bg-green-50">
-                      <h4 className="font-medium text-green-900 mb-2">Secondary Guarantor (Legacy)</h4>
-                      <div className="space-y-1 text-sm">
-                        <div>
-                          <Label className="text-xs">Name</Label>
-                          <p>{(selectedApplication as any).guarantor2Name || 'N/A'}</p>
-                        </div>
-                        <div>
-                          <Label className="text-xs">Member Number</Label>
-                          <p>{(selectedApplication as any).guarantor2MemberNumber || 'N/A'}</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                      );
+                    } catch (e) {
+                      return <div className="p-3 border border-red-200 rounded-lg bg-red-50 text-xs text-red-600">Error rendering secondary guarantor</div>;
+                    }
+                  })()}
                 </div>
               </div>
 
@@ -449,8 +482,9 @@ export default function ApplicationsPage() {
                     <ShieldCheck className="h-5 w-5 text-violet-600" /> Guarantor Approvals
                   </h3>
                   <div className="space-y-2">
-                    {guarantorRequests.map(req => {
-                      const gMember = members.find(m => m.id === req.guarantorMemberId);
+                    {(Array.isArray(guarantorRequests) ? guarantorRequests : []).map(req => {
+                      if (!req) return null;
+                      const gMember = Array.isArray(members) ? members.find(m => m.id === req.guarantorMemberId) : null;
                       return (
                         <div key={req.id} className="flex items-center justify-between p-3 rounded-lg border">
                           <div className="flex items-center gap-2">
@@ -458,11 +492,11 @@ export default function ApplicationsPage() {
                               req.status === 'declined' ? <ShieldX className="h-4 w-4 text-red-600" /> :
                                 <Shield className="h-4 w-4 text-slate-400" />}
                             <span className="text-sm font-medium">
-                              {gMember ? `${gMember.firstName} ${gMember.lastName} (${gMember.memberNumber})` : req.guarantorMemberId}
+                              {gMember ? `${gMember.firstName} ${gMember.lastName} (${gMember.memberNumber})` : (req.guarantorMemberId || 'Unknown')}
                             </span>
                           </div>
                           <Badge variant={req.status === 'approved' ? 'default' : req.status === 'declined' ? 'destructive' : 'secondary'}>
-                            {req.status}
+                            {req.status || 'pending'}
                           </Badge>
                         </div>
                       );
@@ -506,7 +540,7 @@ export default function ApplicationsPage() {
                     </div>
                     <div>
                       <Label>Reviewed Date</Label>
-                      <p className="text-sm">{selectedApplication.reviewedAt?.toLocaleDateString()}</p>
+                      <p className="text-sm">{formatDate(selectedApplication.reviewedAt)}</p>
                     </div>
                   </div>
                   <div className="mt-4">

@@ -12,7 +12,19 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 // Create Supabase client (will be a dummy client if not configured)
+// On some environments, missing headers can cause 406 Not Acceptable errors.
+// We'll ensure standard headers are initialized correctly.
 export const supabase = createClient(
   supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'placeholder-key'
+  supabaseAnonKey || 'placeholder-key',
+  {
+    auth: {
+      persistSession: typeof window !== 'undefined', // Only persist in browser
+      autoRefreshToken: true,
+      detectSessionInUrl: true
+    },
+    global: {
+      headers: { 'x-application-name': 'coopkonnect' }
+    }
+  }
 );

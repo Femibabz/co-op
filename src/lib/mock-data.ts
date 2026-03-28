@@ -722,7 +722,7 @@ export class MockDatabase {
         const { data, error } = await supabase
           .from('users')
           .select('*')
-          .eq('email', email)
+          .ilike('email', email)
           .single();
 
         if (error) {
@@ -1448,45 +1448,50 @@ export class MockDatabase {
         const { data, error } = await query;
 
         if (error) {
-          console.warn('Supabase fetch error:', error);
+          console.error('Supabase getApplications error:', error);
           throw error;
         }
 
-        if (data && data.length > 0) {
-          // Convert Supabase response to MembershipApplication format
-          const applications: MembershipApplication[] = data.map(app => {
-            const guarantorIds = [app.guarantor_id1, app.guarantor_id2].filter(Boolean) as string[];
-            return {
-              id: app.id,
-              societyId: app.society_id || 'soc1',
-              firstName: app.first_name || 'N/A',
-              lastName: app.last_name || 'N/A',
-              email: app.email || 'N/A',
-              phone: app.phone || 'N/A',
-              address: app.address || 'N/A',
-              occupation: app.occupation || undefined,
-              monthlyIncome: app.monthly_income ? Number(app.monthly_income) : undefined,
-              guarantor1Id: app.guarantor_id1,
-              guarantor2Id: app.guarantor_id2,
-              guarantorIds,
-              guarantorCount: 2,
-              status: (app.status as any) || 'pending',
-              appliedAt: app.applied_at ? new Date(app.applied_at) : new Date(),
-              reviewedAt: app.reviewed_at ? new Date(app.reviewed_at) : undefined,
-              reviewedBy: app.reviewed_by || undefined,
-              reviewNotes: app.review_notes || undefined
-            };
-          });
+        // IMPORTANT: Even if data is an empty array [], we return it from Supabase
+        // rather than falling through to localStorage (which might have stale data)
+        const applications: MembershipApplication[] = (data || []).map(app => {
+          const guarantorIds = [app.guarantor_id1, app.guarantor_id2].filter(Boolean) as string[];
+          return {
+            id: app.id,
+            societyId: app.society_id || 'soc1',
+            firstName: app.first_name || 'N/A',
+            lastName: app.last_name || 'N/A',
+            email: app.email || 'N/A',
+            phone: app.phone || 'N/A',
+            address: app.address || 'N/A',
+            occupation: app.occupation || undefined,
+            monthlyIncome: app.monthly_income ? Number(app.monthly_income) : undefined,
+            guarantor1Id: app.guarantor_id1,
+            guarantor2Id: app.guarantor_id2,
+            guarantorIds,
+            guarantorCount: 2,
+            status: (app.status as any) || 'pending',
+            appliedAt: app.applied_at ? new Date(app.applied_at) : new Date(),
+            reviewedAt: app.reviewed_at ? new Date(app.reviewed_at) : undefined,
+            reviewedBy: app.reviewed_by || undefined,
+            reviewNotes: app.review_notes || undefined
+          };
+        });
 
-          // Sync localStorage
+        // Sync localStorage incrementally
+        if (societyId) {
+          this.applications = [
+            ...this.applications.filter(a => a.societyId !== societyId),
+            ...applications
+          ];
+        } else {
           this.applications = applications;
-          this.saveToStorage();
-
-          return applications;
         }
+        this.saveToStorage();
+
+        return applications;
       } catch (error) {
-        console.warn('Error fetching applications from Supabase:', error);
-        // Fall through to localStorage fallback
+        console.warn('Fallback to localStorage for applications:', error);
       }
     }
 
@@ -3148,21 +3153,24 @@ export class MockDatabase {
           .select('*')
           .eq('application_id', applicationId);
 
-        if (!error && data) {
-          return data.map(r => ({
-            id: r.id,
-            societyId: r.society_id,
-            type: r.type as 'loan' | 'membership',
-            applicationId: r.application_id,
-            applicantName: r.applicant_name,
-            guarantorMemberId: r.guarantor_member_id,
-            status: r.status as 'pending' | 'approved' | 'declined',
-            requestedAt: new Date(r.requested_at),
-            respondedAt: r.responded_at ? new Date(r.responded_at) : undefined
-          }));
+        if (error) {
+          console.error('Supabase getGuarantorRequestsForApplication error:', error);
+          throw error;
         }
+
+        return (data || []).map(r => ({
+          id: r.id,
+          societyId: r.society_id,
+          type: r.type as 'loan' | 'membership',
+          applicationId: r.application_id,
+          applicantName: r.applicant_name,
+          guarantorMemberId: r.guarantor_member_id,
+          status: r.status as 'pending' | 'approved' | 'declined',
+          requestedAt: new Date(r.requested_at),
+          respondedAt: r.responded_at ? new Date(r.responded_at) : undefined
+        }));
       } catch (error) {
-        console.warn('Error fetching guarantor requests from Supabase:', error);
+        console.warn('Fallback for guarantor requests:', error);
       }
     }
 
