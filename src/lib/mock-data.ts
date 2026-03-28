@@ -15,11 +15,11 @@ const interestSessionCache = new Set<string>();
 export const mockSocieties: Society[] = [
   {
     id: 'soc1',
-    name: 'OsuOlale Cooperative Society',
-    registrationNumber: 'OSU-2024-001',
+    name: 'Coopkonnect Cooperative Society',
+    registrationNumber: 'COOP-2024-001',
     address: '123 Society Avenue, Lagos',
     phone: '+234-800-123-4567',
-    email: 'admin@osuolale.com',
+    email: 'admin@coopkonnect.com',
     createdAt: new Date('2024-01-01'),
     status: 'active',
     adminUserId: '1',
@@ -57,7 +57,7 @@ export const mockUsers: User[] = [
   },
   {
     id: '1',
-    email: 'admin@osuolale.com',
+    email: 'admin@coopkonnect.com',
     password: 'admin123', // In real app, this would be hashed
     role: 'admin',
     createdAt: new Date('2024-01-01'),
@@ -108,7 +108,7 @@ export const mockByLaws: ByLaw[] = [
     id: 'bl1',
     societyId: 'soc1',
     title: 'Membership Eligibility and Requirements',
-    content: `1. Any individual of sound mind and at least 18 years of age may apply for membership in the OsuOlale Cooperative Society.
+    content: `1. Any individual of sound mind and at least 18 years of age may apply for membership in the Coopkonnect Cooperative Society.
 
 2. All prospective members must:
    - Complete the membership application form with accurate information
@@ -312,10 +312,10 @@ DISCIPLINARY ACTIONS:
     isActive: true,
   },
   {
-    id: 'bl-osu-dynamic-1',
-    societyId: 'soc1774539941239', // Osuolale CTCS
-    title: 'Osuolale Membership Statutes',
-    content: `1. Open to all individuals in the Osuolale community.
+    id: 'bl-coop-dynamic-1',
+    societyId: 'soc1774539941239', // Coopkonnect CTCS
+    title: 'Coopkonnect Membership Statutes',
+    content: `1. Open to all individuals in the Coopkonnect community.
 2. Monthly contribution is mandatory.
 3. Members must adhere to the core values of integrity and cooperation.`,
     category: 'membership',
@@ -345,7 +345,7 @@ export const mockMembers: Member[] = [
     id: 'm1',
     userId: '2',
     societyId: 'soc1',
-    memberNumber: 'OSU001',
+    memberNumber: 'COOP001',
     firstName: 'John',
     lastName: 'Doe',
     email: 'john.doe@email.com',
@@ -367,7 +367,7 @@ export const mockMembers: Member[] = [
     id: 'm2',
     userId: '3',
     societyId: 'soc1',
-    memberNumber: 'OSU002',
+    memberNumber: 'COOP002',
     firstName: 'Jane',
     lastName: 'Smith',
     email: 'jane.smith@email.com',

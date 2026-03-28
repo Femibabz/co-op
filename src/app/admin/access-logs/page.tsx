@@ -69,9 +69,10 @@ export default function AccessLogsPage() {
 
       // Remove member sessions from localStorage
       memberSessions.forEach(session => {
-        const sessions = JSON.parse(localStorage.getItem('osuolale_login_sessions') || '[]');
+        const stored = localStorage.getItem('coopkonnect_login_sessions');
+        const sessions = JSON.parse(stored || '[]');
         const filtered = sessions.filter((s: any) => s.userRole !== 'member');
-        localStorage.setItem('osuolale_login_sessions', JSON.stringify(filtered));
+        localStorage.setItem('coopkonnect_login_sessions', JSON.stringify(filtered));
       });
 
       setCleanupMessage({

@@ -72,7 +72,9 @@ export default function SocietiesPage() {
         lastName: newMem.lastName,
         email: newMem.email,
         phone: newMem.phone,
-        address: 'N/A' // Default
+        address: 'N/A', // Default
+        sharesBalance: 0,
+        savingsBalance: 0
       });
 
       setStatusMsg({ type: 'success', text: `Added ${newMem.firstName} to ${selectedSociety.name}. Password set to: member123` });
@@ -130,11 +132,11 @@ export default function SocietiesPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="name" className="font-bold">Society Name</Label>
-                  <Input id="name" required value={newSoc.name} onChange={e => setNewSoc({ ...newSoc, name: e.target.value })} placeholder="e.g. OsuOlale Coop" />
+                  <Input id="name" required value={newSoc.name} onChange={e => setNewSoc({ ...newSoc, name: e.target.value })} placeholder="e.g. Coopkonnect Coop" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="reg" className="font-bold">Reg. Number</Label>
-                  <Input id="reg" required value={newSoc.reg} onChange={e => setNewSoc({ ...newSoc, reg: e.target.value })} placeholder="OSU-2024-X" />
+                  <Input id="reg" required value={newSoc.reg} onChange={e => setNewSoc({ ...newSoc, reg: e.target.value })} placeholder="COOP-2024-X" />
                 </div>
               </div>
               <div className="space-y-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">

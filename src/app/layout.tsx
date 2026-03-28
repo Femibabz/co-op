@@ -25,7 +25,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${outfit.variable} ${plusJakarta.variable}`}>
-      <body className="font-sans min-h-screen bg-slate-50 selection:bg-emerald-100 selection:text-emerald-900">
+      <body className="font-sans min-h-screen bg-white selection:bg-emerald-100 selection:text-emerald-900">
         <div className="fixed inset-0 -z-10 h-full w-full bg-white bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] opacity-40"></div>
         <AuthProvider>
           {children}

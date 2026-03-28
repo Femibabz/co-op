@@ -50,11 +50,11 @@ If the write test shows a "foreign key constraint" error, you need to create a s
 INSERT INTO societies (id, name, registration_number, address, phone, email, status, admin_user_id, member_count, total_savings, total_loans, total_shares)
 VALUES (
   'soc1',
-  'OsuOlale Cooperative Society',
-  'OSU-2024-001',
+  'Coopkonnect Cooperative Society',
+  'COOP-2024-001',
   '123 Society Avenue, Lagos',
   '+234-800-123-4567',
-  'admin@osuolale.com',
+  'admin@coopkonnect.com',
   'active',
   '1',
   2,
@@ -93,7 +93,7 @@ Now that writes are working, test cross-device sync:
 
 2. **View on Computer B**
    - Open the site on a different device/browser
-   - Log in as admin: `admin@osuolale.com` / `admin123`
+   - Log in as admin: `admin@coopkonnect.com` / `admin123`
    - Go to Applications page
    - You should see the application submitted from Phone A! ✅
 

@@ -117,7 +117,7 @@ Once the syntax error is fixed:
 ## Next Steps to Complete
 
 1. **Fix the Syntax Error:**
-   - Edit `osuolale-mvp/src/lib/mock-data.ts`
+   - Edit `src/lib/mock-data.ts`
    - Move super admin methods INSIDE the MockDatabase class
    - Ensure proper placement before the class closing brace
 
@@ -160,8 +160,8 @@ src/
 **Super Admin (Platform Management):**
 - platform@admin.com / superadmin123
 
-**Society Admin (OsuOlale Society):**
-- admin@osuolale.com / admin123
+**Society Admin (Coopkonnect Society):**
+- admin@coopkonnect.com / admin123
 
 **Member:**
 - john.doe@email.com / member123

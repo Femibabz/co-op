@@ -1,4 +1,4 @@
-# OsuOlale Cooperative Society Management System
+# Coopkonnect Cooperative Society Management System
 
 A comprehensive, modern cooperative society management system built with Next.js 15 and TypeScript. This system provides complete management capabilities for cooperative societies, including member management, loan tracking, savings monitoring, and application processing workflows.
 
@@ -45,8 +45,8 @@ A comprehensive, modern cooperative society management system built with Next.js
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/Femibabz/osuolale-cooperative-management.git
-   cd osuolale-cooperative-management
+   git clone https://github.com/Femibabz/coopkonnect-cooperative-management.git
+   cd coopkonnect-cooperative-management
    ```
 
 2. **Install dependencies**

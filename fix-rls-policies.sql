@@ -1,4 +1,4 @@
--- Fix Row Level Security (RLS) Policies for OsuOlale Cooperative
+-- Fix Row Level Security (RLS) Policies for Coopkonnect Cooperative
 -- Run this in your Supabase SQL Editor if data is not writing to the database
 
 -- ===================================================================

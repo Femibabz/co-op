@@ -1,4 +1,4 @@
-# Supabase Integration Summary
+# Supabase Integration Summary for Coopkonnect
 
 ## Overview
 Successfully integrated Supabase for ALL major database operations in `mock-data.ts` following the same pattern used for `createApplication()` and `getApplications()`.

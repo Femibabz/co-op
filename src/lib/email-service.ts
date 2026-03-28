@@ -29,7 +29,7 @@ export class EmailService {
         message: `
 Dear ${data.applicantName},
 
-Congratulations! Your membership application to OsuOlale Cooperative Society has been approved.
+Congratulations! Your membership application to Coopkonnect Cooperative Society has been approved.
 
 Your membership details:
 - Member Number: ${data.memberNumber}

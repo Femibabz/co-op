@@ -65,7 +65,7 @@ The dashboard provides:
 ### For Admins
 
 1. **View Access Logs:**
-   - Login as admin (admin@osuolale.com / admin123)
+   - Login as admin (admin@coopkonnect.com / admin123)
    - Click on "Access Logs" in the navigation
    - Review all login sessions
 
@@ -161,7 +161,7 @@ To test the feature:
 4. Observe suspicious activity flags
 
 **Demo Credentials:**
-- Admin: admin@osuolale.com / admin123
+- Admin: admin@coopkonnect.com / admin123
 - Member: john.doe@email.com / member123
 
 ---
